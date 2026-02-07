@@ -1,3 +1,17 @@
-/build
-/install
-/log
+# ROS2 build folders
+build/
+install/
+log/
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Compiled files
+*.o
+*.so
+*.pyc
