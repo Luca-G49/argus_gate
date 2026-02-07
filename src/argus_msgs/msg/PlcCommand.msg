@@ -1,0 +1,14 @@
+uint16 life_word
+bool ack
+bool exec
+bool fire
+bool pitch_jog_p
+bool pitch_jog_n
+bool yaw_jog_p
+bool yaw_jog_n
+int16 mode
+int16 pitch_override
+int16 yaw_override
+int32 target_pitch
+int32 target_yaw
+uint16 checksum

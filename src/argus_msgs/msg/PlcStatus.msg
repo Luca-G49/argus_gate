@@ -1,0 +1,10 @@
+uint16 life_word
+bool done
+bool busy
+bool synch
+bool on_target
+int16 status
+int16 error
+int32 pos_pitch
+int32 pos_yaw
+uint16 checksum
