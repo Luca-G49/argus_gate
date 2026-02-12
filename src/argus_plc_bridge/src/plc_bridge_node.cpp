@@ -22,6 +22,9 @@ using namespace std::chrono_literals;
 class PlcBridgeNode : public rclcpp::Node {
 public:
     PlcBridgeNode() : Node("plc_bridge_node") {
+        // Initialize watchdog timers to "now"
+        last_rx_time_ = this->get_clock()->now();
+
         // --- 1. PARAMETERS DECLARATION ---
         this->declare_parameter("plc_ip", "127.0.0.1");
         this->declare_parameter("remote_port", 55753);
@@ -106,15 +109,22 @@ private:
             }
 
             if (data_received) {
-                // Publish only when new data is received from the hardware
+                // Publish only when new data is received
                 {
                     std::lock_guard<std::mutex> lock(mtx_);
                     rx_data_ = temp_status;
                 }
+                // Update the watchdog timer on successful reception
+                last_rx_time_ = this->get_clock()->now();
+                // Publish the new status to ROS2
                 status_pub_->publish(temp_status);
             } else {
                 // Log a warning if no data is received for a while
-                RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000, "No data from PLC...");
+                if (!check_watchdog(last_rx_time_)) {
+                    auto silence = (this->get_clock()->now() - last_rx_time_).seconds() * 1000.0;
+                    RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000, 
+                                        "No data from PLC for %.1f ms...", silence);
+                }
             }
 
             // --- 3. DETERMINISTIC TIMING ---
@@ -175,9 +185,20 @@ private:
         return s;
     }
 
+    /**
+     * @brief Checks if a watchdog timer is still valid
+     */
+    bool check_watchdog(const rclcpp::Time &last_time) {
+        return (this->get_clock()->now() - last_time) < timeout_threshold_;
+    }
+
     // ROS2 Members
     rclcpp::Publisher<argus_msgs::msg::PlcStatus>::SharedPtr status_pub_;
     rclcpp::Subscription<argus_msgs::msg::PlcCommand>::SharedPtr command_sub_;
+
+    // Watchdog timer for PLC communication
+    rclcpp::Time last_rx_time_{0, 0, RCL_ROS_TIME};
+    std::chrono::milliseconds timeout_threshold_{500};
     
     // Network Members
     sf::UdpSocket socket_;
