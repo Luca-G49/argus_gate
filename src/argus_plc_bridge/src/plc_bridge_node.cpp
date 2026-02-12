@@ -106,17 +106,18 @@ private:
             }
 
             if (data_received) {
-                std::lock_guard<std::mutex> lock(mtx_);
-                rx_data_ = temp_status;
+                // Publish only when new data is received from the hardware
+                {
+                    std::lock_guard<std::mutex> lock(mtx_);
+                    rx_data_ = temp_status;
+                }
+                status_pub_->publish(temp_status);
+            } else {
+                // Log a warning if no data is received for a while
+                RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000, "No data from PLC...");
             }
 
-            // --- 3. DETERMINISTIC PUBLISHING ---
-            {
-                std::lock_guard<std::mutex> lock(mtx_);
-                status_pub_->publish(rx_data_);
-            }
-
-            // --- 4. DETERMINISTIC TIMING ---
+            // --- 3. DETERMINISTIC TIMING ---
             std::this_thread::sleep_until(next_cycle);
         }
     }
