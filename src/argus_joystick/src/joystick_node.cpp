@@ -1,20 +1,21 @@
 #include <memory>
 #include <chrono>
+#include <vector>
 #include <rclcpp/rclcpp.hpp>
-#include "argus_msgs/msg/plc_command.hpp"
+#include "sensor_msgs/msg/joy.hpp"
 #include <SFML/Window/Joystick.hpp>
 
 using namespace std::chrono_literals;
 
 /**
  * @class JoystickNode
- * @brief Reads PS4 joystick input via SFML and publishes corresponding PlcCommand messages.
+ * @brief Reads hardware joystick input via SFML and publishes generic sensor_msgs/Joy messages.
  */
 class JoystickNode : public rclcpp::Node {
 public:
     JoystickNode() : Node("joystick_node") {
         // --- 1. ROS2 PUBLISHER SETUP ---
-        publisher_ = this->create_publisher<argus_msgs::msg::PlcCommand>("plc_command", 10);
+        publisher_ = this->create_publisher<sensor_msgs::msg::Joy>("joy", 10);
 
         // --- 2. JOYSTICK INITIALIZATION ---
         joystick_id_ = -1;
@@ -30,56 +31,56 @@ public:
 
         if (joystick_id_ == -1) {
             RCLCPP_ERROR(this->get_logger(), "No joystick detected!");
-            // We don't throw to allow the node to stay alive for hot-plugging if needed
         }
 
         // --- 3. TIMER FOR PERIODIC PUBLISHING (50Hz) ---
-        timer_ = this->create_wall_timer(20ms, std::bind(&JoystickNode::publish_command, this));
+        timer_ = this->create_wall_timer(20ms, std::bind(&JoystickNode::read_and_publish, this));
 
         RCLCPP_INFO(this->get_logger(), "--- Joystick Node Active ---");
     }
 
 private:
     /**
-     * @brief Reads joystick axes and publishes PlcCommand message.
+     * @brief Reads all joystick axes and buttons and publishes a Joy message.
      */
-    void publish_command() {
-        // MUST call update() to refresh hardware state
+    void read_and_publish() {
+        // Refresh joystick state
         sf::Joystick::update();
 
-        argus_msgs::msg::PlcCommand msg;
+        sensor_msgs::msg::Joy msg;
+        msg.header.stamp = this->get_clock()->now();
+        msg.header.frame_id = "joystick_frame";
 
         // --- 1. INITIALIZE DEFAULT COMMAND VALUES ---
-        msg.ack  = false;
-        msg.exec = false;
-        msg.fire = false;
-        msg.mode = 0;
-        msg.pitch_override = 100;
-        msg.yaw_override   = 100;
-        msg.target_pitch   = 0;
-        msg.target_yaw     = 0;
+        // Pre-allocate vectors for axes (8) and buttons (14)
+        msg.axes.assign(8, 0.0f);
+        msg.buttons.assign(14, 0);
 
         if (joystick_id_ != -1 && sf::Joystick::isConnected(joystick_id_)) {
-            // --- 2. READ RIGHT ANALOG STICK (PS4: U=Axis 4, R=Axis 5) ---
-            float axis_x = sf::Joystick::getAxisPosition(joystick_id_, sf::Joystick::U);
-            float axis_y = sf::Joystick::getAxisPosition(joystick_id_, sf::Joystick::R);
+            // --- 2. READ ANALOG AXES (Normalized to [-1.0, 1.0]) ---
+            // Mapping follows standard PS4/Xbox patterns via SFML
+            msg.axes[0] = sf::Joystick::getAxisPosition(joystick_id_, sf::Joystick::X) / 100.0f;  // Left Stick L/R
+            msg.axes[1] = sf::Joystick::getAxisPosition(joystick_id_, sf::Joystick::Y) / -100.0f; // Left Stick U/D (Inverted)
+            msg.axes[2] = sf::Joystick::getAxisPosition(joystick_id_, sf::Joystick::Z) / 100.0f;  // L2 Trigger
+            msg.axes[3] = sf::Joystick::getAxisPosition(joystick_id_, sf::Joystick::R) / -100.0f; // Right Stick U/D (Inverted)
+            msg.axes[4] = sf::Joystick::getAxisPosition(joystick_id_, sf::Joystick::U) / 100.0f;  // Right Stick L/R
+            msg.axes[5] = sf::Joystick::getAxisPosition(joystick_id_, sf::Joystick::V) / 100.0f;  // R2 Trigger
+            msg.axes[6] = sf::Joystick::getAxisPosition(joystick_id_, sf::Joystick::PovX) / 100.0f; // D-Pad H
+            msg.axes[7] = sf::Joystick::getAxisPosition(joystick_id_, sf::Joystick::PovY) / 100.0f; // D-Pad V
 
-            // --- 3. APPLY DEADZONE AND MAP TO BOOLEAN JOG COMMANDS ---
-            const float deadzone = 15.0f;
-            msg.pitch_jog_p = axis_y < -deadzone; // stick up
-            msg.pitch_jog_n = axis_y > deadzone;  // stick down
-            msg.yaw_jog_p   = axis_x > deadzone;  // stick right
-            msg.yaw_jog_n   = axis_x < -deadzone; // stick left
+            // --- 3. READ DIGITAL BUTTONS ---
+            for (unsigned int i = 0; i < msg.buttons.size(); ++i) {
+                msg.buttons[i] = sf::Joystick::isButtonPressed(joystick_id_, i) ? 1 : 0;
+            }
         } else {
-            // Reset jog commands if joystick is lost
-            msg.pitch_jog_p = msg.pitch_jog_n = msg.yaw_jog_p = msg.yaw_jog_n = false;
+            // Data remains zeroed if joystick is lost to ensure safety
         }
 
         // --- 4. PUBLISH MESSAGE ---
         publisher_->publish(msg);
     }
 
-    rclcpp::Publisher<argus_msgs::msg::PlcCommand>::SharedPtr publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::Joy>::SharedPtr publisher_;
     rclcpp::TimerBase::SharedPtr timer_;
     int joystick_id_;
 };
