@@ -119,17 +119,18 @@ private:
         if (last_joy_.axes.size() < 8) return;
 
         const float deadzone = 0.15f;
-        
-        // Pitch (Stick LY or D-Pad V)
-        cmd.pitch_jog_p = (last_joy_.axes[1] > deadzone  || last_joy_.axes[7] > 0.5f);
-        cmd.pitch_jog_n = (last_joy_.axes[1] < -deadzone || last_joy_.axes[7] < -0.5f);
 
-        // Yaw (Stick LX or D-Pad H)
-        cmd.yaw_jog_p   = (last_joy_.axes[0] > deadzone  || last_joy_.axes[6] > 0.5f);
-        cmd.yaw_jog_n   = (last_joy_.axes[0] < -deadzone || last_joy_.axes[6] < -0.5f);
+        // Pitch cmd (Axis 5 - RY)
+        float p = last_joy_.axes[5];
+        cmd.pitch_jog_n = (p >  deadzone);
+        cmd.pitch_jog_p = (p < -deadzone);
+        cmd.pitch_override = static_cast<int32_t>(std::abs(p) * 100.0f);
 
-        cmd.pitch_override = 100;
-        cmd.yaw_override   = 100;
+        // Yaw cmd (Axis 4 - RX)
+        float y = last_joy_.axes[4];
+        cmd.yaw_jog_p = (y >  deadzone);
+        cmd.yaw_jog_n = (y < -deadzone);
+        cmd.yaw_override = static_cast<int32_t>(std::abs(y) * 100.0f);
         
         if (last_joy_.buttons.size() >= 2) {
             cmd.ack  = last_joy_.buttons[0]; // Cross
@@ -185,7 +186,7 @@ private:
     sensor_msgs::msg::Joy last_joy_;
     argus_msgs::msg::PlcStatus last_status_;
     rclcpp::Time last_joy_time_, last_status_time_;
-    std::chrono::milliseconds timeout_threshold_;
+    std::chrono::milliseconds timeout_threshold_{500};
 };
 
 int main(int argc, char **argv) {
