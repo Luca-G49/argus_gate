@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(argus_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 
 # Find SFML
 find_package(SFML COMPONENTS window system REQUIRED)
@@ -18,6 +19,7 @@ target_include_directories(joystick_node PRIVATE ${SFML_INCLUDE_DIR})
 ament_target_dependencies(joystick_node
   rclcpp
   argus_msgs
+  sensor_msgs
 )
 
 # Link explicit system libraries

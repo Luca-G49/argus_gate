@@ -22,7 +22,7 @@ public:
         ERROR_RESET = 99
     };
 
-    ArgusManagerNode() : Node("argus_manager_node"), requested_mode_(ControlMode::IDLE), {
+    ArgusManagerNode() : Node("argus_manager_node"), requested_mode_(ControlMode::IDLE) {
         // Initialize watchdog timers to "now"
         last_joy_time_ = this->get_clock()->now();
         last_status_time_ = this->get_clock()->now();
