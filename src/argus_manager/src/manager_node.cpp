@@ -22,7 +22,11 @@ public:
         ERROR_RESET = 99
     };
 
-    ArgusManagerNode() : Node("argus_manager_node"), requested_mode_(ControlMode::IDLE) {
+    ArgusManagerNode() : Node("argus_manager_node"), requested_mode_(ControlMode::IDLE), {
+        // Initialize watchdog timers to "now"
+        last_joy_time_ = this->get_clock()->now();
+        last_status_time_ = this->get_clock()->now();
+
         // --- 1. PARAMETERS ---
         this->declare_parameter("watchdog_timeout_ms", 500);
         this->declare_parameter("loop_frequency", 50.0);
@@ -180,7 +184,7 @@ private:
     ControlMode requested_mode_;
     sensor_msgs::msg::Joy last_joy_;
     argus_msgs::msg::PlcStatus last_status_;
-    rclcpp::Time last_joy_time_{0, 0, RCL_ROS_TIME}, last_status_time_{0, 0, RCL_ROS_TIME};
+    rclcpp::Time last_joy_time_, last_status_time_;
     std::chrono::milliseconds timeout_threshold_;
 };
 
