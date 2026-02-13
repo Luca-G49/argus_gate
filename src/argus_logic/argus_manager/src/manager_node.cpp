@@ -36,8 +36,8 @@ public:
 
         // --- 2. COMMS ---
         joy_sub_     = this->create_subscription<sensor_msgs::msg::Joy>("joy", 10, std::bind(&ArgusManagerNode::on_joy_received, this, std::placeholders::_1));
-        status_sub_  = this->create_subscription<argus_msgs::msg::PlcStatus>("plc_status", 10, std::bind(&ArgusManagerNode::on_status_received, this, std::placeholders::_1));
-        command_pub_ = this->create_publisher<argus_msgs::msg::PlcCommand>("plc_command", 10);
+        status_sub_  = this->create_subscription<argus_interfaces::msg::PlcStatus>("plc_status", 10, std::bind(&ArgusManagerNode::on_status_received, this, std::placeholders::_1));
+        command_pub_ = this->create_publisher<argus_interfaces::msg::PlcCommand>("plc_command", 10);
 
         // --- 3. MAIN CYCLE (50Hz) ---
         auto interval = std::chrono::duration<double>(1.0 / freq);
@@ -51,7 +51,7 @@ private:
      * @brief Supervisor loop: Health Check -> Mode Arbitration -> Command Dispatch.
      */
     void supervisor_cycle() {
-        argus_msgs::msg::PlcCommand outbound_cmd;
+        argus_interfaces::msg::PlcCommand outbound_cmd;
         reset_command(outbound_cmd);
 
         // --- STEP 1: QOS / HEALTH MONITORING ---
@@ -100,7 +100,7 @@ private:
     /**
      * @brief Handles motion generation based on the active requested mode.
      */
-    void execute_mode_logic(argus_msgs::msg::PlcCommand &cmd) {
+    void execute_mode_logic(argus_interfaces::msg::PlcCommand &cmd) {
         switch (requested_mode_) {
             case ControlMode::MANUAL_JOG:
                 map_joystick_to_jog(cmd);
@@ -115,7 +115,7 @@ private:
         }
     }
 
-    void map_joystick_to_jog(argus_msgs::msg::PlcCommand &cmd) {
+    void map_joystick_to_jog(argus_interfaces::msg::PlcCommand &cmd) {
         if (last_joy_.axes.size() < 8) return;
 
         const float deadzone = 0.15f;
@@ -138,7 +138,7 @@ private:
         }
     }
 
-    void process_error_recovery(argus_msgs::msg::PlcCommand &cmd) {
+    void process_error_recovery(argus_interfaces::msg::PlcCommand &cmd) {
         if (!last_joy_.buttons.empty()) {
             cmd.ack = last_joy_.buttons[0];
         }
@@ -151,7 +151,7 @@ private:
         return (this->get_clock()->now() - last_time) < timeout_threshold_;
     }
 
-    void reset_command(argus_msgs::msg::PlcCommand &cmd) {
+    void reset_command(argus_interfaces::msg::PlcCommand &cmd) {
         cmd.pitch_jog_p = cmd.pitch_jog_n = cmd.yaw_jog_p = cmd.yaw_jog_n = false;
         cmd.ack = cmd.exec = cmd.fire = false;
         cmd.pitch_override = cmd.yaw_override = 0;
@@ -171,20 +171,20 @@ private:
         last_joy_time_ = this->get_clock()->now();
     }
 
-    void on_status_received(const argus_msgs::msg::PlcStatus::SharedPtr msg) {
+    void on_status_received(const argus_interfaces::msg::PlcStatus::SharedPtr msg) {
         last_status_ = *msg;
         last_status_time_ = this->get_clock()->now();
     }
 
     // Members
     rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub_;
-    rclcpp::Subscription<argus_msgs::msg::PlcStatus>::SharedPtr status_sub_;
-    rclcpp::Publisher<argus_msgs::msg::PlcCommand>::SharedPtr command_pub_;
+    rclcpp::Subscription<argus_interfaces::msg::PlcStatus>::SharedPtr status_sub_;
+    rclcpp::Publisher<argus_interfaces::msg::PlcCommand>::SharedPtr command_pub_;
     rclcpp::TimerBase::SharedPtr timer_;
 
     ControlMode requested_mode_;
     sensor_msgs::msg::Joy last_joy_;
-    argus_msgs::msg::PlcStatus last_status_;
+    argus_interfaces::msg::PlcStatus last_status_;
     rclcpp::Time last_joy_time_, last_status_time_;
     std::chrono::milliseconds timeout_threshold_{500};
 };

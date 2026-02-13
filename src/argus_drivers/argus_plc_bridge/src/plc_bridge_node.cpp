@@ -47,8 +47,8 @@ public:
         plc_port_ = static_cast<unsigned short>(r_port);
 
         // --- 3. ROS2 PUBS/SUBS ---
-        status_pub_ = this->create_publisher<argus_msgs::msg::PlcStatus>("plc_status", 10);
-        command_sub_ = this->create_subscription<argus_msgs::msg::PlcCommand>(
+        status_pub_ = this->create_publisher<argus_interfaces::msg::PlcStatus>("plc_status", 10);
+        command_sub_ = this->create_subscription<argus_interfaces::msg::PlcCommand>(
             "plc_command", 10, std::bind(&PlcBridgeNode::command_callback, this, std::placeholders::_1));
 
         // --- 4. START NETWORK THREAD ---
@@ -71,7 +71,7 @@ private:
     /**
      * @brief Thread-safe update of motion control targets from ROS2 topic.
      */
-    void command_callback(const argus_msgs::msg::PlcCommand::SharedPtr msg) {
+    void command_callback(const argus_interfaces::msg::PlcCommand::SharedPtr msg) {
         std::lock_guard<std::mutex> lock(mtx_);
         tx_data_ = *msg;
     }
@@ -101,7 +101,7 @@ private:
             sf::IpAddress sender;
             unsigned short port;
             bool data_received = false;
-            argus_msgs::msg::PlcStatus temp_status;
+            argus_interfaces::msg::PlcStatus temp_status;
 
             while (socket_.receive(buffer, sizeof(buffer), received, sender, port) == sf::Socket::Done) {
                 temp_status = deserialize_201(std::string(buffer, received));
@@ -135,7 +135,7 @@ private:
     /**
      * @brief Serializes PlcCommand into the MSG_200 pipe-separated format.
      */
-    std::string serialize_200(const argus_msgs::msg::PlcCommand& d) {
+    std::string serialize_200(const argus_interfaces::msg::PlcCommand& d) {
         std::stringstream ss;
         ss << "200|" << d.life_word << "|" 
            << d.ack << "|" << d.exec << "|" << d.fire << "|"
@@ -155,8 +155,8 @@ private:
     /**
      * @brief Parses the MSG_201 string into the PlcStatus structure.
      */
-    argus_msgs::msg::PlcStatus deserialize_201(const std::string& raw) {
-        argus_msgs::msg::PlcStatus s;
+    argus_interfaces::msg::PlcStatus deserialize_201(const std::string& raw) {
+        argus_interfaces::msg::PlcStatus s;
         if (raw.length() < 5) return s;
 
         std::string payload = raw.substr(2); // Skip binary length header
@@ -193,8 +193,8 @@ private:
     }
 
     // ROS2 Members
-    rclcpp::Publisher<argus_msgs::msg::PlcStatus>::SharedPtr status_pub_;
-    rclcpp::Subscription<argus_msgs::msg::PlcCommand>::SharedPtr command_sub_;
+    rclcpp::Publisher<argus_interfaces::msg::PlcStatus>::SharedPtr status_pub_;
+    rclcpp::Subscription<argus_interfaces::msg::PlcCommand>::SharedPtr command_sub_;
 
     // Watchdog timer for PLC communication
     rclcpp::Time last_rx_time_{0, 0, RCL_ROS_TIME};
@@ -209,8 +209,8 @@ private:
     std::thread net_thread_;
     std::mutex mtx_;
 
-    argus_msgs::msg::PlcCommand tx_data_;
-    argus_msgs::msg::PlcStatus rx_data_;
+    argus_interfaces::msg::PlcCommand tx_data_;
+    argus_interfaces::msg::PlcStatus rx_data_;
 };
 
 int main(int argc, char **argv) {
