@@ -1,5 +1,7 @@
 argus_plc_bridge:
   ros__parameters:
     plc_ip: "192.168.1.222"
-    frequency: 10
     remote_port: 57446
+    local_port: 57446
+    frequency: 10
+    
