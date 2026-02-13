@@ -1,0 +1,4 @@
+argus_joystick:
+  ros__parameters:
+    deadzone: 0.05
+    autorepeat_rate: 20.0

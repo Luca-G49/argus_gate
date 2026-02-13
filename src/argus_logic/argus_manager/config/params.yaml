@@ -1,0 +1,4 @@
+argus_manager_node:
+  ros__parameters:
+    watchdog_timeout_ms: 500
+    safe_mode: true
