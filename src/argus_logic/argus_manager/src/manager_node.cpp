@@ -3,8 +3,8 @@
 #include <map>
 #include <rclcpp/rclcpp.hpp>
 #include "sensor_msgs/msg/joy.hpp"
-#include "argus_msgs/msg/plc_command.hpp"
-#include "argus_msgs/msg/plc_status.hpp"
+#include "argus_interfaces/msg/plc_command.hpp"
+#include "argus_interfaces/msg/plc_status.hpp"
 
 using namespace std::chrono_literals;
 

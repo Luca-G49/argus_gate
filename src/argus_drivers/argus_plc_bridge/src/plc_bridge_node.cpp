@@ -10,8 +10,8 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include <SFML/Network.hpp>
-#include "argus_msgs/msg/plc_command.hpp"
-#include "argus_msgs/msg/plc_status.hpp"
+#include "argus_interfaces/msg/plc_command.hpp"
+#include "argus_interfaces/msg/plc_status.hpp"
 
 using namespace std::chrono_literals;
 

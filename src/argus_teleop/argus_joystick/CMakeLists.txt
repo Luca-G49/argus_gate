@@ -18,7 +18,6 @@ target_include_directories(joystick_node PRIVATE ${SFML_INCLUDE_DIR})
 
 ament_target_dependencies(joystick_node
   rclcpp
-  argus_msgs
   sensor_msgs
 )
 

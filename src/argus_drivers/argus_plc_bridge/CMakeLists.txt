@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # 1. Trova ROS2 e messaggi
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(argus_msgs REQUIRED)
+find_package(argus_interfaces REQUIRED)
 
 # 2. Trova SFML (per gli include path)
 find_package(SFML COMPONENTS network system REQUIRED)
@@ -19,7 +19,7 @@ add_executable(plc_bridge_node src/plc_bridge_node.cpp)
 target_include_directories(plc_bridge_node PRIVATE ${SFML_INCLUDE_DIR})
 ament_target_dependencies(plc_bridge_node 
   rclcpp 
-  argus_msgs
+  argus_interfaces
 )
 
 # 5. LINK FORZATO (Risolve gli undefined reference)
