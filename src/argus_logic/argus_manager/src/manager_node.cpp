@@ -16,8 +16,8 @@ class ArgusManagerNode : public rclcpp::Node {
 public:
     // Modes mandated by ROS2 to the PLC
     enum class ControlMode : int32_t {
-        IDLE = 1,
-        MANUAL_JOG = 4,
+        IDLE = 0,
+        MANUAL_JOG = 1,
         AUTO_TRACK = 5,
         ERROR_RESET = 99
     };
@@ -122,8 +122,8 @@ private:
 
         // Pitch cmd (Axis 5 - RY)
         float p = last_joy_.axes[5];
-        cmd.pitch_jog_n = (p >  deadzone);
-        cmd.pitch_jog_p = (p < -deadzone);
+        cmd.pitch_jog_p = (p >  deadzone);
+        cmd.pitch_jog_n = (p < -deadzone);
         cmd.pitch_override = static_cast<int32_t>(std::abs(p) * 100.0f);
 
         // Yaw cmd (Axis 4 - RX)
