@@ -147,8 +147,8 @@ private:
         
         std::string content = ss.str();
         std::string header = "  ";
-        header[0] = static_cast<char>(content.length() + 2); // Message length header
-        header[1] = 0; 
+        header[0] = static_cast<char>(254); // Message length header
+        header[1] = static_cast<char>(content.length()); // Message length header; 
         return header + content;
     }
 
@@ -167,7 +167,7 @@ private:
         while (std::getline(ss, item, '|')) v.push_back(item);
 
         try {
-            if (v.size() >= 11 && v[0] == "201") {
+            if (v.size() >= 11 && v[0] == "+201") {
                 s.life_word   = std::stoi(v[1]);
                 s.done        = (v[2] == "1");
                 s.busy        = (v[3] == "1");
