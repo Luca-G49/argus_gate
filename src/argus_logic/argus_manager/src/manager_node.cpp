@@ -15,7 +15,7 @@ using namespace std::chrono_literals;
 class ArgusManagerNode : public rclcpp::Node {
 public:
     // Modes mandated by ROS2 to the PLC
-    enum class ControlMode : int32_t {
+    enum class ControlMode : int16_t  {
         IDLE = 0,
         MANUAL_JOG = 1,
         AUTO_TRACK = 5,
@@ -82,7 +82,7 @@ private:
         }
 
         // Set the final mode mandated by ROS2
-        outbound_cmd.mode = static_cast<int32_t>(requested_mode_);
+        outbound_cmd.mode = static_cast<int16_t>(requested_mode_);
         command_pub_->publish(outbound_cmd);
     }
 
@@ -124,13 +124,13 @@ private:
         float p = last_joy_.axes[5];
         cmd.pitch_jog_p = (p >  deadzone);
         cmd.pitch_jog_n = (p < -deadzone);
-        cmd.pitch_override = static_cast<int32_t>(std::abs(p) * 100.0f);
+        cmd.pitch_override = std::abs(p) * 100.0f;
 
         // Yaw cmd (Axis 4 - RX)
         float y = last_joy_.axes[4];
         cmd.yaw_jog_p = (y >  deadzone);
         cmd.yaw_jog_n = (y < -deadzone);
-        cmd.yaw_override = static_cast<int32_t>(std::abs(y) * 100.0f);
+        cmd.yaw_override = std::abs(y) * 100.0f;
         
         if (last_joy_.buttons.size() >= 2) {
             cmd.ack  = last_joy_.buttons[0]; // Cross
@@ -154,8 +154,9 @@ private:
     void reset_command(argus_interfaces::msg::PlcCommand &cmd) {
         cmd.pitch_jog_p = cmd.pitch_jog_n = cmd.yaw_jog_p = cmd.yaw_jog_n = false;
         cmd.ack = cmd.exec = cmd.fire = false;
-        cmd.pitch_override = cmd.yaw_override = 0;
-        cmd.mode = static_cast<int32_t>(ControlMode::IDLE);
+        cmd.pitch_override = cmd.yaw_override = 0.0f;
+        cmd.target_pitch = cmd.target_yaw = 0.0f;
+        cmd.mode = static_cast<int16_t>(ControlMode::IDLE);
     }
 
     void log_fault(const std::string &msg, int throttle_ms) {
