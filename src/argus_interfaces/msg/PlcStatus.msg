@@ -5,6 +5,6 @@ bool synch
 bool on_target
 int16 status
 int16 error
-int32 pos_pitch
-int32 pos_yaw
+float32  pos_pitch
+float32  pos_yaw
 uint16 checksum

@@ -7,8 +7,8 @@ bool pitch_jog_n
 bool yaw_jog_p
 bool yaw_jog_n
 int16 mode
-int16 pitch_override
-int16 yaw_override
-int32 target_pitch
-int32 target_yaw
+float32  pitch_override
+float32  yaw_override
+float32  target_pitch
+float32  target_yaw
 uint16 checksum
