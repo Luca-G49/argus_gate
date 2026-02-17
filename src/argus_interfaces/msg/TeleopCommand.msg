@@ -1,0 +1,8 @@
+float32 pitch_speed
+float32 yaw_speed
+float32 target_pitch
+float32 target_yaw
+int16 requested_mode
+bool send_target
+bool execute_action
+bool reset_error
