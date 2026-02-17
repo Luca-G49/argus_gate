@@ -6,7 +6,7 @@
 #include <mutex>
 #include <atomic>
 #include <vector>
-#include <sstream>
+#include <cstring>
 
 #include "rclcpp/rclcpp.hpp"
 #include <SFML/Network.hpp>
@@ -14,6 +14,33 @@
 #include "argus_interfaces/msg/plc_status.hpp"
 
 using namespace std::chrono_literals;
+
+// --- BINARY STRUCTURES FOR DIRECT MEMORY MAPPING ---
+#pragma pack(push, 1)
+struct RawTx200 {
+    uint16_t id = 200;           // Message ID
+    uint16_t life_word;          // Heartbeat
+    uint8_t  flags;              // bool ack, exec, fire (bit 0,1,2)
+    uint8_t  jogs;               // bool pitch_jog_p, n, yaw_jog_p, n (bit 0,1,2,3)
+    int16_t  mode;               
+    float    pitch_override;     
+    float    yaw_override;       
+    float    target_pitch;       
+    float    target_yaw;         
+    uint16_t checksum;           
+};
+
+struct RawRx201 {
+    uint16_t id;                 // Message ID from PLC
+    uint16_t life_word;          
+    uint8_t  flags;              // bool done, busy, synch, on_target
+    int16_t  status;             
+    int16_t  error;              
+    float    pos_pitch;          
+    float    pos_yaw;            
+    uint16_t checksum;           
+};
+#pragma pack(pop)
 
 /**
  * @class PlcBridgeNode
@@ -85,27 +112,30 @@ private:
         while (running_ && rclcpp::ok()) {
             auto next_cycle = std::chrono::steady_clock::now() + interval;
 
-            // --- 1. TRANSMISSION (Request/Ping) ---
-            std::string out_payload;
+            // --- 1. TRANSMISSION (Binary Struct) ---
+            RawTx200 out_packet;
             {
                 std::lock_guard<std::mutex> lock(mtx_);
                 tx_data_.life_word = rx_data_.life_word; // Sync heartbeat for PLC watchdog
-                out_payload = serialize_200(tx_data_);
+                out_packet = serialize_200(tx_data_);
             }
-            socket_.send(out_payload.c_str(), out_payload.size(), plc_ip_, plc_port_);
+            socket_.send(&out_packet, sizeof(out_packet), plc_ip_, plc_port_);
 
-            // --- 2. RECEPTION (Response/Pong) ---
+            // --- 2. RECEPTION (Binary Struct) ---
             // Flush UDP buffer to retrieve only the most recent datagram
-            char buffer[1024];
+            RawRx201 in_raw;
             std::size_t received;
             sf::IpAddress sender;
             unsigned short port;
             bool data_received = false;
             argus_interfaces::msg::PlcStatus temp_status;
 
-            while (socket_.receive(buffer, sizeof(buffer), received, sender, port) == sf::Socket::Done) {
-                temp_status = deserialize_201(std::string(buffer, received));
-                data_received = true;
+            while (socket_.receive(&in_raw, sizeof(in_raw), received, sender, port) == sf::Socket::Done) {
+                // Check if size is correct and ID matches
+                if (received == sizeof(RawRx201) && in_raw.id == 201) {
+                    temp_status = deserialize_201(in_raw);
+                    data_received = true;
+                }
             }
 
             if (data_received) {
@@ -133,55 +163,39 @@ private:
     }
 
     /**
-     * @brief Serializes PlcCommand into the MSG_200 pipe-separated format.
+     * @brief Serializes PlcCommand into the RawTx200 binary format.
      */
-    std::string serialize_200(const argus_interfaces::msg::PlcCommand& d) {
-        std::stringstream ss;
-        ss << "200|" << d.life_word << "|" 
-           << d.ack << "|" << d.exec << "|" << d.fire << "|"
-           << d.pitch_jog_p << "|" << d.pitch_jog_n << "|"
-           << d.yaw_jog_p << "|" << d.yaw_jog_n << "|"
-           << d.mode << "|" << d.pitch_override << "|" << d.yaw_override << "|"
-           << d.target_pitch << "|" << d.target_yaw << "|" 
-           << d.checksum;
-        
-        std::string content = ss.str();
-        std::string header = "  ";
-        header[0] = static_cast<char>(254); // Message length header
-        header[1] = static_cast<char>(content.length()); // Message length header; 
-        return header + content;
+    RawTx200 serialize_200(const argus_interfaces::msg::PlcCommand& d) {
+        RawTx200 p;
+        p.life_word = d.life_word;
+        // Pack bools into bits
+        p.flags = (d.ack << 0) | (d.exec << 1) | (d.fire << 2);
+        p.jogs  = (d.pitch_jog_p << 0) | (d.pitch_jog_n << 1) | (d.yaw_jog_p << 2) | (d.yaw_jog_n << 3);
+        p.mode = d.mode;
+        p.pitch_override = d.pitch_override;
+        p.yaw_override = d.yaw_override;
+        p.target_pitch = d.target_pitch;
+        p.target_yaw = d.target_yaw;
+        p.checksum = d.checksum;
+        return p;
     }
 
     /**
-     * @brief Parses the MSG_201 string into the PlcStatus structure.
+     * @brief Parses the RawRx201 binary struct into the PlcStatus structure.
      */
-    argus_interfaces::msg::PlcStatus deserialize_201(const std::string& raw) {
+    argus_interfaces::msg::PlcStatus deserialize_201(const RawRx201& raw) {
         argus_interfaces::msg::PlcStatus s;
-        if (raw.length() < 5) return s;
-
-        std::string payload = raw.substr(2); // Skip binary length header
-        std::stringstream ss(payload);
-        std::string item;
-        std::vector<std::string> v;
-
-        while (std::getline(ss, item, '|')) v.push_back(item);
-
-        try {
-            if (v.size() >= 11 && v[0] == "+201") {
-                s.life_word   = std::stoi(v[1]);
-                s.done        = (v[2] == "1");
-                s.busy        = (v[3] == "1");
-                s.synch       = (v[4] == "1");
-                s.on_target   = (v[5] == "1");
-                s.status      = std::stoi(v[6]);
-                s.error       = std::stoi(v[7]);
-                s.pos_pitch   = std::stol(v[8]);
-                s.pos_yaw     = std::stol(v[9]);
-                s.checksum    = std::stoi(v[10]);
-            }
-        } catch (...) {
-            // Return default/zeroed status on parsing error
-        }
+        s.life_word = raw.life_word;
+        // Unpack bits into bools
+        s.done      = (raw.flags >> 0) & 1;
+        s.busy      = (raw.flags >> 1) & 1;
+        s.synch     = (raw.flags >> 2) & 1;
+        s.on_target = (raw.flags >> 3) & 1;
+        s.status    = raw.status;
+        s.error     = raw.error;
+        s.pos_pitch = raw.pos_pitch;
+        s.pos_yaw   = raw.pos_yaw;
+        s.checksum  = raw.checksum;
         return s;
     }
 
