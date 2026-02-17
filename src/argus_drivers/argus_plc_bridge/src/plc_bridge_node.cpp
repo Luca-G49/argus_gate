@@ -166,7 +166,7 @@ private:
      * @brief Serializes PlcCommand into the RawTx200 binary format.
      */
     RawTx200 serialize_200(const argus_interfaces::msg::PlcCommand& d) {
-        RawTx200 p;
+        RawTx200 p {};
         p.life_word = d.life_word;
         // Pack bools into bits
         p.flags = (d.ack << 0) | (d.exec << 1) | (d.fire << 2);
