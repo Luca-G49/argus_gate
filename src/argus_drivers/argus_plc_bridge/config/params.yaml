@@ -3,5 +3,5 @@ argus_plc_bridge:
     plc_ip: "192.168.1.1"
     remote_port: 45500
     local_port: 57446
-    frequency: 10
+    frequency: 50
     

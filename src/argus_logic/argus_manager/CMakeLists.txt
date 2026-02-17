@@ -11,16 +11,16 @@ find_package(rclcpp REQUIRED)
 find_package(argus_interfaces REQUIRED)
 
 # --- EXECUTABLES ---
-add_executable(argus_manager_node src/argus_manager_node.cpp)
+add_executable(manager_node src/manager_node.cpp)
 
 # --- INCLUDE AND ROS 2 DEPENDENCIES ---
-ament_target_dependencies(argus_manager_node
+ament_target_dependencies(manager_node
   rclcpp
   argus_interfaces
 )
 
 # --- INSTALLATION ---
-install(TARGETS argus_manager_node
+install(TARGETS manager_node
   DESTINATION lib/${PROJECT_NAME}
 )
 

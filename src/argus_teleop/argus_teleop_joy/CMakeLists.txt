@@ -12,17 +12,17 @@ find_package(sensor_msgs REQUIRED)
 find_package(argus_interfaces REQUIRED)
 
 # --- EXECUTABLES ---
-add_executable(argus_teleop_joy_node src/argus_teleop_joy_node.cpp)
+add_executable(teleop_joy_node src/teleop_joy_node.cpp)
 
 # --- INCLUDE AND ROS 2 DEPENDENCIES ---
-ament_target_dependencies(argus_teleop_joy_node
+ament_target_dependencies(teleop_joy_node
   rclcpp
   sensor_msgs
   argus_interfaces
 )
 
 # --- INSTALLATION ---
-install(TARGETS argus_teleop_joy_node
+install(TARGETS teleop_joy_node
   DESTINATION lib/${PROJECT_NAME}
 )
 

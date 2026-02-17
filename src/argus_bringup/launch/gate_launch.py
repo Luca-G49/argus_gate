@@ -13,7 +13,7 @@ def generate_launch_description():
         )
 
     return LaunchDescription([
-        include_launch('argus_joystick', 'joystick.launch.py'),
+        #include_launch('argus_joystick', 'joystick.launch.py'),
         include_launch('argus_plc_bridge', 'bridge.launch.py'),
         include_launch('argus_manager', 'manager.launch.py'),
     ])
