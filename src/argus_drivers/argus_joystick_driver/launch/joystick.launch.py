@@ -8,7 +8,7 @@ def generate_launch_description():
     return LaunchDescription([
         Node(
             package='argus_joystick_driver',
-            executable='joystick_node',
+            executable='joystick_driver_node',
             name='argus_joystick_driver',
             parameters=[config],
             output='screen'

@@ -12,21 +12,21 @@ find_package(sensor_msgs REQUIRED)
 find_package(SFML COMPONENTS window system REQUIRED)
 
 # --- EXECUTABLES ---
-add_executable(joystick_node src/joystick_node.cpp)
+add_executable(joystick_driver_node src/joystick_driver_node.cpp)
 
 # --- INCLUDE AND ROS 2 DEPENDENCIES ---
-target_include_directories(joystick_node PRIVATE ${SFML_INCLUDE_DIR})
+target_include_directories(joystick_driver_node PRIVATE ${SFML_INCLUDE_DIR})
 
-ament_target_dependencies(joystick_node
+ament_target_dependencies(joystick_driver_node
   rclcpp
   sensor_msgs
 )
 
 # --- EXTERNAL LIBRARIES LINKING ---
-target_link_libraries(joystick_node sfml-window sfml-system)
+target_link_libraries(joystick_driver_node sfml-window sfml-system)
 
 # --- INSTALLATION ---
-install(TARGETS joystick_node
+install(TARGETS joystick_driver_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
