@@ -18,6 +18,7 @@ public:
     enum class ControlMode : int16_t  {
         IDLE = 0,
         MANUAL_JOG = 1,
+        MANUAL_TRACK = 2,
         AUTO_TRACK = 5,
         ERROR_RESET = 99
     };
@@ -97,9 +98,9 @@ private:
         if (!teleop_ready) return;
 
         // Mode switching via Teleop requests
-        if (last_teleop_.requested_mode == 1) requested_mode_ = ControlMode::MANUAL_JOG;
         if (last_teleop_.requested_mode == 0) requested_mode_ = ControlMode::IDLE;
-        if (last_teleop_.requested_mode == 5) requested_mode_ = ControlMode::AUTO_TRACK;
+        if (last_teleop_.requested_mode == 1) requested_mode_ = ControlMode::MANUAL_JOG;
+        if (last_teleop_.requested_mode == 2) requested_mode_ = ControlMode::MANUAL_TRACK;
     }
 
     /**
@@ -111,7 +112,7 @@ private:
                 map_teleop_to_jog(cmd);
                 break;
             
-            case ControlMode::AUTO_TRACK:
+            case ControlMode::MANUAL_TRACK:
                 if (last_teleop_.send_target) {
                     cmd.target_pitch = last_teleop_.target_pitch;
                     cmd.target_yaw   = last_teleop_.target_yaw;

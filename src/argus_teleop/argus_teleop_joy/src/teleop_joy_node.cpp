@@ -36,12 +36,13 @@ private:
         cmd.yaw_speed   = msg->axes[4]; // RX Stick
 
         // --- 2. MODE ARBITRATION REQUESTS ---
-        if (msg->buttons[3]) cmd.requested_mode = 1; // Triangle -> Request MANUAL
         if (msg->buttons[2]) cmd.requested_mode = 0; // Square -> Request IDLE
+        if (msg->buttons[3]) cmd.requested_mode = 1; // Triangle -> Request MANUAL
+
         
         // --- 3. TARGET LOGIC (Example: L1 triggers Auto Mode) ---
         if (msg->buttons[4]) {
-            cmd.requested_mode = 5;      // Request AUTO
+            cmd.requested_mode = 2;      // Request MANUAL_TRACK
             cmd.target_pitch   = 45.0f;  // Example fixed target
             cmd.target_yaw     = 90.0f;
             cmd.send_target    = true;
