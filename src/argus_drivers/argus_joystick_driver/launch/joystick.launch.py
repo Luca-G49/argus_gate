@@ -4,12 +4,12 @@ from launch import LaunchDescription
 from launch_ros.actions import Node
 
 def generate_launch_description():
-    config = os.path.join(get_package_share_directory('argus_joystick'), 'config', 'params.yaml')
+    config = os.path.join(get_package_share_directory('argus_joystick_driver'), 'config', 'params.yaml')
     return LaunchDescription([
         Node(
-            package='argus_joystick',
+            package='argus_joystick_driver',
             executable='joystick_node',
-            name='argus_joystick',
+            name='argus_joystick_driver',
             parameters=[config],
             output='screen'
         )

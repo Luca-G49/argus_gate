@@ -2,7 +2,7 @@
 #include <chrono>
 #include <map>
 #include <rclcpp/rclcpp.hpp>
-#include "sensor_msgs/msg/joy.hpp"
+#include "argus_interfaces/msg/teleop_command.hpp"
 #include "argus_interfaces/msg/plc_command.hpp"
 #include "argus_interfaces/msg/plc_status.hpp"
 
@@ -24,7 +24,7 @@ public:
 
     ArgusManagerNode() : Node("argus_manager_node"), requested_mode_(ControlMode::IDLE) {
         // Initialize watchdog timers to "now"
-        last_joy_time_ = this->get_clock()->now();
+        last_teleop_time_ = this->get_clock()->now();
         last_status_time_ = this->get_clock()->now();
 
         // --- 1. PARAMETERS ---
@@ -35,8 +35,12 @@ public:
         double freq = this->get_parameter("loop_frequency").as_double();
 
         // --- 2. COMMS ---
-        joy_sub_     = this->create_subscription<sensor_msgs::msg::Joy>("joy", 10, std::bind(&ArgusManagerNode::on_joy_received, this, std::placeholders::_1));
-        status_sub_  = this->create_subscription<argus_interfaces::msg::PlcStatus>("plc_status", 10, std::bind(&ArgusManagerNode::on_status_received, this, std::placeholders::_1));
+        teleop_sub_  = this->create_subscription<argus_interfaces::msg::TeleopCommand>(
+            "teleop_cmd", 10, std::bind(&ArgusManagerNode::on_teleop_received, this, std::placeholders::_1));
+        
+        status_sub_  = this->create_subscription<argus_interfaces::msg::PlcStatus>(
+            "plc_status", 10, std::bind(&ArgusManagerNode::on_status_received, this, std::placeholders::_1));
+        
         command_pub_ = this->create_publisher<argus_interfaces::msg::PlcCommand>("plc_command", 10);
 
         // --- 3. MAIN CYCLE (50Hz) ---
@@ -55,7 +59,7 @@ private:
         reset_command(outbound_cmd);
 
         // --- STEP 1: QOS / HEALTH MONITORING ---
-        bool joy_alive = check_watchdog(last_joy_time_);
+        bool teleop_alive = check_watchdog(last_teleop_time_);
         bool plc_alive = check_watchdog(last_status_time_);
 
         if (!plc_alive) {
@@ -64,16 +68,16 @@ private:
         }
 
         // --- STEP 2: MODE ARBITRATION ---
-        // Update the requested mode based on UI/Joystick inputs
-        update_requested_mode(joy_alive);
+        // Update the requested mode based on UI/Teleop inputs
+        update_requested_mode(teleop_alive);
 
         // Force IDLE mode if hardware reports an error
         if (last_status_.error != 0) {
             requested_mode_ = ControlMode::IDLE;
             process_error_recovery(outbound_cmd);
         } 
-        else if (!joy_alive && requested_mode_ == ControlMode::MANUAL_JOG) {
-            log_warn("Joystick Offline: Forcing Safe Stop", 2000);
+        else if (!teleop_alive && requested_mode_ == ControlMode::MANUAL_JOG) {
+            log_warn("Teleop Offline: Forcing Safe Stop", 2000);
             requested_mode_ = ControlMode::IDLE;
         } 
         else {
@@ -89,12 +93,13 @@ private:
     /**
      * @brief Logic to switch between control modes.
      */
-    void update_requested_mode(bool joy_ready) {
-        if (!joy_ready || last_joy_.buttons.size() < 4) return;
+    void update_requested_mode(bool teleop_ready) {
+        if (!teleop_ready) return;
 
-        // Mode switching via Joystick buttons (Example: PS4 layout)
-        if (last_joy_.buttons[3]) requested_mode_ = ControlMode::MANUAL_JOG; // Triangle -> Manual
-        if (last_joy_.buttons[2]) requested_mode_ = ControlMode::IDLE;       // Square -> Idle
+        // Mode switching via Teleop requests
+        if (last_teleop_.requested_mode == 1) requested_mode_ = ControlMode::MANUAL_JOG;
+        if (last_teleop_.requested_mode == 0) requested_mode_ = ControlMode::IDLE;
+        if (last_teleop_.requested_mode == 5) requested_mode_ = ControlMode::AUTO_TRACK;
     }
 
     /**
@@ -103,11 +108,15 @@ private:
     void execute_mode_logic(argus_interfaces::msg::PlcCommand &cmd) {
         switch (requested_mode_) {
             case ControlMode::MANUAL_JOG:
-                map_joystick_to_jog(cmd);
+                map_teleop_to_jog(cmd);
                 break;
             
             case ControlMode::AUTO_TRACK:
-                // Future: Tracking logic from Vision node
+                if (last_teleop_.send_target) {
+                    cmd.target_pitch = last_teleop_.target_pitch;
+                    cmd.target_yaw   = last_teleop_.target_yaw;
+                    cmd.exec = true; // Signal PLC to move to target
+                }
                 break;
 
             default:
@@ -115,33 +124,28 @@ private:
         }
     }
 
-    void map_joystick_to_jog(argus_interfaces::msg::PlcCommand &cmd) {
-        if (last_joy_.axes.size() < 8) return;
-
+    /**
+     * @brief Maps abstracted teleop speeds to PLC Jog commands.
+     */
+    void map_teleop_to_jog(argus_interfaces::msg::PlcCommand &cmd) {
         const float deadzone = 0.15f;
 
-        // Pitch cmd (Axis 5 - RY)
-        float p = last_joy_.axes[5];
+        float p = last_teleop_.pitch_speed;
         cmd.pitch_jog_p = (p >  deadzone);
         cmd.pitch_jog_n = (p < -deadzone);
         cmd.pitch_override = std::abs(p) * 100.0f;
 
-        // Yaw cmd (Axis 4 - RX)
-        float y = last_joy_.axes[4];
+        float y = last_teleop_.yaw_speed;
         cmd.yaw_jog_p = (y >  deadzone);
         cmd.yaw_jog_n = (y < -deadzone);
         cmd.yaw_override = std::abs(y) * 100.0f;
         
-        if (last_joy_.buttons.size() >= 2) {
-            cmd.ack  = last_joy_.buttons[0]; // Cross
-            cmd.exec = last_joy_.buttons[1]; // Circle
-        }
+        cmd.ack  = last_teleop_.reset_error;
+        cmd.exec = last_teleop_.execute_action;
     }
 
     void process_error_recovery(argus_interfaces::msg::PlcCommand &cmd) {
-        if (!last_joy_.buttons.empty()) {
-            cmd.ack = last_joy_.buttons[0];
-        }
+        cmd.ack = last_teleop_.reset_error;
         RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000, "PLC ERROR: Manual reset required (ACK)");
     }
 
@@ -167,9 +171,9 @@ private:
         RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), throttle_ms, "%s", msg.c_str());
     }
 
-    void on_joy_received(const sensor_msgs::msg::Joy::SharedPtr msg) {
-        last_joy_ = *msg;
-        last_joy_time_ = this->get_clock()->now();
+    void on_teleop_received(const argus_interfaces::msg::TeleopCommand::SharedPtr msg) {
+        last_teleop_ = *msg;
+        last_teleop_time_ = this->get_clock()->now();
     }
 
     void on_status_received(const argus_interfaces::msg::PlcStatus::SharedPtr msg) {
@@ -178,15 +182,15 @@ private:
     }
 
     // Members
-    rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub_;
+    rclcpp::Subscription<argus_interfaces::msg::TeleopCommand>::SharedPtr teleop_sub_;
     rclcpp::Subscription<argus_interfaces::msg::PlcStatus>::SharedPtr status_sub_;
     rclcpp::Publisher<argus_interfaces::msg::PlcCommand>::SharedPtr command_pub_;
     rclcpp::TimerBase::SharedPtr timer_;
 
     ControlMode requested_mode_;
-    sensor_msgs::msg::Joy last_joy_;
+    argus_interfaces::msg::TeleopCommand last_teleop_;
     argus_interfaces::msg::PlcStatus last_status_;
-    rclcpp::Time last_joy_time_, last_status_time_;
+    rclcpp::Time last_teleop_time_, last_status_time_;
     std::chrono::milliseconds timeout_threshold_{500};
 };
 

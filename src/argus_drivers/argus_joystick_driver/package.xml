@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org" schematypens="http://www.w3.org"?>
 <package format="3">
-  <name>argus_joystick</name>
+  <name>argus_joystick_driver</name>
   <version>0.0.0</version>
   <description>Joystick controller for Argus Gate project</description>
   <maintainer email="user@todo.todo">user</maintainer>

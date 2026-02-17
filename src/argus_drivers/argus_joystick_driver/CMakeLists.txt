@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(argus_manager)
+project(argus_joystick_driver)
 
 # --- COMPILATION OPTIONS ---
 set(CMAKE_CXX_STANDARD 17)
@@ -8,19 +8,25 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # --- DEPENDENCIES ---
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(argus_interfaces REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(SFML COMPONENTS window system REQUIRED)
 
 # --- EXECUTABLES ---
-add_executable(argus_manager_node src/argus_manager_node.cpp)
+add_executable(joystick_node src/joystick_node.cpp)
 
 # --- INCLUDE AND ROS 2 DEPENDENCIES ---
-ament_target_dependencies(argus_manager_node
+target_include_directories(joystick_node PRIVATE ${SFML_INCLUDE_DIR})
+
+ament_target_dependencies(joystick_node
   rclcpp
-  argus_interfaces
+  sensor_msgs
 )
 
+# --- EXTERNAL LIBRARIES LINKING ---
+target_link_libraries(joystick_node sfml-window sfml-system)
+
 # --- INSTALLATION ---
-install(TARGETS argus_manager_node
+install(TARGETS joystick_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
