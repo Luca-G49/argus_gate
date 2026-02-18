@@ -34,6 +34,7 @@ struct RawRx201 {
     uint16_t id;                 // Message ID from PLC
     uint16_t life_word;          
     uint8_t  flags;              // bool done, busy, synch, on_target
+    uint8_t  padding;            // Padding for alignment
     int16_t  status;             
     int16_t  error;              
     float    pos_pitch;          
