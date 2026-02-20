@@ -7,9 +7,10 @@
 #include <atomic>
 #include <vector>
 #include <cstring>
+#include <arpa/inet.h> 
+#include <SFML/Network.hpp>
 
 #include "rclcpp/rclcpp.hpp"
-#include <SFML/Network.hpp>
 #include "argus_interfaces/msg/plc_command.hpp"
 #include "argus_interfaces/msg/plc_status.hpp"
 
@@ -17,29 +18,29 @@ using namespace std::chrono_literals;
 
 // --- BINARY STRUCTURES FOR DIRECT MEMORY MAPPING ---
 #pragma pack(push, 1)
-struct RawTx200 {
-    uint16_t id = 200;           // Message ID
-    uint16_t life_word;          // Heartbeat
-    uint8_t  flags;              // bool ack, exec, fire (bit 0,1,2)
-    uint8_t  jogs;               // bool pitch_jog_p, n, yaw_jog_p, n (bit 0,1,2,3)
-    int16_t  mode;               
-    float    pitch_override;     
-    float    yaw_override;       
-    float    target_pitch;       
-    float    target_yaw;         
-    uint16_t checksum;           
+struct RawTx2Data {
+    uint16_t id = 200;           // Offset 0
+    uint16_t life_word;          // Offset 2
+    uint8_t  flags;              // Offset 4 (ack, exec, fire)
+    uint8_t  jogs;               // Offset 5 (pitch_p/n, yaw_p/n)
+    int16_t  mode;               // Offset 6
+    int32_t  pitch_override;     // Offset 8  (DINT scaled x100)
+    int32_t  yaw_override;       // Offset 12 (DINT scaled x100)
+    int32_t  target_pitch;       // Offset 16 (DINT scaled x100)
+    int32_t  target_yaw;         // Offset 20 (DINT scaled x100)
+    uint16_t checksum;           // Offset 24
 };
 
-struct RawRx201 {
-    uint16_t id;                 // Message ID from PLC
-    uint16_t life_word;          
-    uint8_t  flags;              // bool done, busy, synch, on_target
-    uint8_t  padding;            // Padding for alignment
-    int16_t  status;             
-    int16_t  error;              
-    float    pos_pitch;          
-    float    pos_yaw;            
-    uint16_t checksum;           
+struct RawRxData {
+    uint16_t id;                 // Offset 0
+    uint16_t life_word;          // Offset 2
+    uint8_t  flags;              // Offset 4 (done, busy, synch, on_target)
+    uint8_t  reserved;           // Offset 5 (Padding for alignment)
+    int16_t  status;             // Offset 6
+    int16_t  error;              // Offset 8
+    int32_t  pos_pitch;          // Offset 10 (DINT scaled x100)
+    int32_t  pos_yaw;            // Offset 14 (DINT scaled x100)
+    uint16_t checksum;           // Offset 18
 };
 #pragma pack(pop)
 
@@ -114,17 +115,17 @@ private:
             auto next_cycle = std::chrono::steady_clock::now() + interval;
 
             // --- 1. TRANSMISSION (Binary Struct) ---
-            RawTx200 out_packet;
+            RawTxData out_packet;
             {
                 std::lock_guard<std::mutex> lock(mtx_);
                 tx_data_.life_word = rx_data_.life_word; // Sync heartbeat for PLC watchdog
-                out_packet = serialize_200(tx_data_);
+                out_packet = encode_packet(tx_data_);
             }
             socket_.send(&out_packet, sizeof(out_packet), plc_ip_, plc_port_);
 
             // --- 2. RECEPTION (Binary Struct) ---
             // Flush UDP buffer to retrieve only the most recent datagram
-            RawRx201 in_raw;
+            RawRxData in_raw;
             std::size_t received;
             sf::IpAddress sender;
             unsigned short port;
@@ -133,8 +134,8 @@ private:
 
             while (socket_.receive(&in_raw, sizeof(in_raw), received, sender, port) == sf::Socket::Done) {
                 // Check if size is correct and ID matches
-                if (received == sizeof(RawRx201) && in_raw.id == 201) {
-                    temp_status = deserialize_201(in_raw);
+                if (received == sizeof(RawRxData) && ntohs(in_raw.id) == 201) {
+                    temp_status = decode_packet(in_raw);
                     data_received = true;
                 }
             }
@@ -164,39 +165,50 @@ private:
     }
 
     /**
-     * @brief Serializes PlcCommand into the RawTx200 binary format.
+     * @brief Encode PlcCommand into the RawTxData binary format (Big Endian + Scaling).
      */
-    RawTx200 serialize_200(const argus_interfaces::msg::PlcCommand& d) {
-        RawTx200 p {};
-        p.life_word = d.life_word;
+    RawTxData encode_packet(const argus_interfaces::msg::PlcCommand& d) {
+        RawTxData p {};
+        p.id = htons(200);
+        p.life_word = htons(d.life_word);
+        
         // Pack bools into bits
         p.flags = (d.ack << 0) | (d.exec << 1) | (d.fire << 2);
         p.jogs  = (d.pitch_jog_p << 0) | (d.pitch_jog_n << 1) | (d.yaw_jog_p << 2) | (d.yaw_jog_n << 3);
-        p.mode = d.mode;
-        p.pitch_override = d.pitch_override;
-        p.yaw_override = d.yaw_override;
-        p.target_pitch = d.target_pitch;
-        p.target_yaw = d.target_yaw;
-        p.checksum = d.checksum;
+        
+        p.mode = htons(static_cast<uint16_t>(d.mode));
+        
+        // Convert from float to Big Endian DINT (scaled by 100)
+        p.pitch_override = htonl(static_cast<int32_t>(d.pitch_override * 100.0f));
+        p.yaw_override   = htonl(static_cast<int32_t>(d.yaw_override * 100.0f));
+        p.target_pitch   = htonl(static_cast<int32_t>(d.target_pitch * 100.0f));
+        p.target_yaw     = htonl(static_cast<int32_t>(d.target_yaw * 100.0f));
+        
+        p.checksum = htons(d.checksum);
         return p;
     }
 
     /**
-     * @brief Parses the RawRx201 binary struct into the PlcStatus structure.
+     * @brief Decode the RawRxData binary struct (Big Endian + Scaling) into PlcStatus.
      */
-    argus_interfaces::msg::PlcStatus deserialize_201(const RawRx201& raw) {
+    argus_interfaces::msg::PlcStatus decode_packet(const RawRxData& raw) {
         argus_interfaces::msg::PlcStatus s;
-        s.life_word = raw.life_word;
+        s.life_word = ntohs(raw.life_word);
+        
         // Unpack bits into bools
         s.done      = (raw.flags >> 0) & 1;
         s.busy      = (raw.flags >> 1) & 1;
         s.synch     = (raw.flags >> 2) & 1;
         s.on_target = (raw.flags >> 3) & 1;
-        s.status    = raw.status;
-        s.error     = raw.error;
-        s.pos_pitch = raw.pos_pitch;
-        s.pos_yaw   = raw.pos_yaw;
-        s.checksum  = raw.checksum;
+        
+        s.status    = static_cast<int16_t>(ntohs(raw.status));
+        s.error     = static_cast<int16_t>(ntohs(raw.error));
+        
+        // Convert from Big Endian and scale back to float
+        s.pos_pitch = static_cast<float>(static_cast<int32_t>(ntohl(raw.pos_pitch))) / 100.0f;
+        s.pos_yaw   = static_cast<float>(static_cast<int32_t>(ntohl(raw.pos_yaw))) / 100.0f;
+        
+        s.checksum  = ntohs(raw.checksum);
         return s;
     }
 
