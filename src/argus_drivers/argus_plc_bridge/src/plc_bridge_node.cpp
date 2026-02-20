@@ -18,7 +18,7 @@ using namespace std::chrono_literals;
 
 // --- BINARY STRUCTURES FOR DIRECT MEMORY MAPPING ---
 #pragma pack(push, 1)
-struct RawTx2Data {
+struct RawTxData {
     uint16_t id = 200;           // Offset 0
     uint16_t life_word;          // Offset 2
     uint8_t  flags;              // Offset 4 (ack, exec, fire)

@@ -27,9 +27,7 @@ private:
      * @brief Translates PS4 mapping to generic Argus Teleop intentions.
      */
     void on_joy_received(const sensor_msgs::msg::Joy::SharedPtr msg) {
-        if (msg->axes.size() < 8 || msg->buttons.size() < 4) return;
-
-        argus_interfaces::msg::TeleopCommand cmd;
+        if (msg->axes.size() < 8 || msg->buttons.size() < 4) return; 
 
         // --- 1. MANUAL JOG LOGIC (Speeds -1.0 to 1.0) ---
         cmd.pitch_speed = msg->axes[5]; // RY Stick
@@ -59,6 +57,7 @@ private:
 
     rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub_;
     rclcpp::Publisher<argus_interfaces::msg::TeleopCommand>::SharedPtr teleop_pub_;
+    argus_interfaces::msg::TeleopCommand cmd;
 };
 
 int main(int argc, char **argv) {
