@@ -1,3 +1,9 @@
+/*
+ * Argus Gate - argus_manager/src/manager_node.cpp
+ * Copyright (c) 2026, Name
+ * All rights reserved. Licensed under MIT License.
+ */
+
 #include "manager_node.hpp"
 
 ArgusManagerNode::ArgusManagerNode() : Node("argus_manager_node"), requested_mode_(ControlMode::IDLE) {

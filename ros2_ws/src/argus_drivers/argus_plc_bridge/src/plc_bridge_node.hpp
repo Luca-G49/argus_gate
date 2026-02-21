@@ -1,3 +1,9 @@
+/*
+ * Argus Gate - argus_plc_bridge/src/plc_bridge_node.hpp
+ * Copyright (c) 2026, Name
+ * All rights reserved. Licensed under MIT License.
+ */
+
 #ifndef PLC_BRIDGE_NODE_HPP
 #define PLC_BRIDGE_NODE_HPP
 

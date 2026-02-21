@@ -1,3 +1,9 @@
+/*
+ * Argus Gate - argus_teleop_joy/src/teleop_joy_node.cpp
+ * Copyright (c) 2026, Name
+ * All rights reserved. Licensed under MIT License.
+ */
+
 #include <memory>
 #include <chrono>
 #include <rclcpp/rclcpp.hpp>

@@ -1,3 +1,9 @@
+/*
+ * Argus Gate - argus_plc_bridge/src/packet_utils.hpp
+ * Copyright (c) 2026, Name
+ * All rights reserved. Licensed under MIT License.
+ */
+
 #ifndef PACKET_UTILS_HPP
 #define PACKET_UTILS_HPP
 

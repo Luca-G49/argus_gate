@@ -1,3 +1,7 @@
+# Argus Gate - argus_teleop_joy/CMakeLists.txt
+# Copyright (c) 2026, Luca G49
+# All rights reserved. Licensed under MIT License.
+
 cmake_minimum_required(VERSION 3.8)
 project(argus_teleop_joy)
 

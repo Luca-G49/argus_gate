@@ -1,3 +1,7 @@
+# Argus Gate - gate_launch.py
+# Copyright (c) 2026, Luca G49
+# All rights reserved. Licensed under MIT License.
+
 from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource

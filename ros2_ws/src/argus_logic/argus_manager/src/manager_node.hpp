@@ -1,3 +1,9 @@
+/*
+ * Argus Gate - argus_manager/src/manager_node.hpp
+ * Copyright (c) 2026, Name
+ * All rights reserved. Licensed under MIT License.
+ */
+
 #ifndef MANAGER_NODE_HPP
 #define MANAGER_NODE_HPP
 

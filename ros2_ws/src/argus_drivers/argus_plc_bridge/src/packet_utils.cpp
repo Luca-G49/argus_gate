@@ -1,3 +1,9 @@
+/*
+ * Argus Gate - argus_plc_bridge/src/packet_utils.cpp
+ * Copyright (c) 2026, Name
+ * All rights reserved. Licensed under MIT License.
+ */
+
 #include "packet_utils.hpp"
 #include <arpa/inet.h>
 

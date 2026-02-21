@@ -1,3 +1,7 @@
+# Argus Gate - argus_plc_bridge/launch/bridge.launch.py
+# Copyright (c) 2026, Luca G49
+# All rights reserved. Licensed under MIT License.
+
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription

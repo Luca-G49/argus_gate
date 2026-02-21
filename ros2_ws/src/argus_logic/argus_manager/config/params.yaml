@@ -1,3 +1,7 @@
+# Argus Gate - argus_manager/config/params.yaml
+# Copyright (c) 2026, Luca G49
+# All rights reserved. Licensed under MIT License.
+
 argus_manager_node:
   ros__parameters:
     watchdog_timeout_ms: 500

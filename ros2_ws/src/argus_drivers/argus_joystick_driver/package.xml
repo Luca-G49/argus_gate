@@ -1,3 +1,9 @@
+<!--
+  Argus Gate - argus_joystick_driver/package.xml
+  Copyright (c) 2026, Name
+  All rights reserved. Licensed under MIT License.
+-->
+
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org" schematypens="http://www.w3.org"?>
 <package format="3">
