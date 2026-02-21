@@ -58,10 +58,7 @@ The project is organized into the following ROS 2 packages:
 - **`argus_description`**: URDF models and STL meshes for robot description and simulation.
 - **`argus_drivers`**: Hardware drivers and interfaces (includes `plc_bridge_node`, `joystick_driver_node`).
 - **`argus_interfaces`**: Custom message definitions and interfaces (includes `TeleopCommand`, `PlcCommand`, `PlcStatus`).
-- **`argus_joystick`**: (Interface definitions, if any).
 - **`argus_logic`**: Core logic and state management (`manager_node`).
-- **`argus_msgs`**: (Legacy or additional messages).
-- **`argus_plc_bridge`**: (Interface for PLC, possibly deprecated in favor of `argus_drivers`).
 - **`argus_teleop`**: Teleoperation utilities (`teleop_joy_node`).
 
 ---
@@ -69,8 +66,8 @@ The project is organized into the following ROS 2 packages:
 ## ⚙️ Hardware Details
 
 *   **Controller:** Siemens S7-1214C PLC.
-*   **Motors:** 2x **Nema Stepper Motors** (Pitch & Yaw).
-*   **Drivers:** 2x **DM556** digital stepper drivers.
+*   **Motors:** 2x **Nema 23 Stepper Motors** (Pitch & Yaw).
+*   **Drivers:** 2x **DM542** digital stepper drivers.
 *   **Control Method:** The PLC manages the motors in **Open Loop** using high-speed pulse outputs (PTO).
 *   **Vision:** Luxonis OAK-D S2 Depth Camera.
 
@@ -109,7 +106,7 @@ The project is organized into the following ROS 2 packages:
 ### Installation
 1. Clone the repository:
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/Luca-G49/argus_gate.git
    cd argus_gate_ws
    ```
 
