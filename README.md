@@ -65,7 +65,8 @@ The project is organized into the following ROS 2 packages:
 
 ## ⚙️ Hardware Details
 
-*   **Controller:** Siemens S7-1214C PLC.
+*   **ROS2 PC:** Generic PC running Ubuntu 22.04.
+*   **PLC:** Siemens S7-1214C PLC.
 *   **Motors:** 2x **Nema 23 Stepper Motors** (Pitch & Yaw).
 *   **Drivers:** 2x **DM542** digital stepper drivers.
 *   **Control Method:** The PLC manages the motors in **Open Loop** using high-speed pulse outputs (PTO).
@@ -77,7 +78,7 @@ The project is organized into the following ROS 2 packages:
 
 *   **Full CAD Model:** Available as [turret.stl](./hardware/cad/turret.stl) in the **`/hardware/cad`** folder.
 *   **ROS Meshes:** STL files for simulation (base_link, pitch_link, yaw_link) in **`argus_description/meshes`**.
-*   **Range of Motion:** +-120° Yaw rotation / -20° to +45° Pitch.
+*   **Range of Motion:** +-120° Yaw rotation / +-45° Pitch.
 
 ![Turret STL Preview](./docs/images/preview.PNG)
 
@@ -86,11 +87,11 @@ The project is organized into the following ROS 2 packages:
 ## 🚀 System Capabilities
 
 - [x] **ROS 2 Workspace**: Standardized modular package structure.
-- [x] **PLC Bridge**: Reliable 100Hz UDP communication with Siemens PLC.
+- [x] **PLC Bridge**: Reliable 100Hz UDP communication with PLC.
 - [x] **Manual Teleoperation**: Full control with Joystick interface.
 - [ ] **Rviz Digital Twin**: Real-time 3D simulation and visualization.
 - [ ] **TF2 Integration**: Dynamic coordinate transformation for targeting.
-- [ ] **Flet Dashboard**: Modern web GUI for telemetry and remote control.
+- [ ] **Flet Dashboard**: Web GUI for telemetry and remote control.
 - [ ] **Autonomous Tracking**: Full-Auto mode using AI vision.
 
 ---
