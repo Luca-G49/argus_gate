@@ -12,7 +12,7 @@ find_package(argus_interfaces REQUIRED)
 find_package(SFML COMPONENTS network system REQUIRED)
 
 # --- EXECUTABLES ---
-add_executable(plc_bridge_node src/plc_bridge_node.cpp)
+add_executable(plc_bridge_node src/plc_bridge_node.cpp src/packet_utils.cpp)
 
 # --- INCLUDE AND ROS 2 DEPENDENCIES ---
 target_include_directories(plc_bridge_node PRIVATE ${SFML_INCLUDE_DIR})
