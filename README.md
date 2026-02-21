@@ -79,7 +79,7 @@ Motor control is managed through **PLCopen Motion Control (MC) function blocks**
 
 ## ⚙️ Hardware Details
 
-*   **ROS2 PC:** Generic PC running Ubuntu 22.04.
+*   **ROS2 PC:** Raspberry Pi 4 running Ubuntu 22.04.
 *   **PLC:** Siemens S7-1214C PLC.
 *   **Motors:** 2x **Nema 23 Stepper Motors** (Pitch & Yaw).
 *   **Drivers:** 2x **DM542** digital stepper drivers.
