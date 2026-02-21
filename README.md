@@ -6,33 +6,62 @@
 
 ## 🏗️ System Overview
 
-The system is designed as a **decoupled ROS 2 Graph**, where functional levels are separated to ensure safety, modularity, and low-latency hardware communication.
+The **Argus Gate** system is structured as a **modular ROS 2 graph** with five functional levels, ensuring safety, modularity, and efficient communication. Each level handles specific responsibilities, from hardware interaction to high-level decision-making.
 
 <img src="./docs/system_diagram.svg" width="600">
 
-### 1. GUI Level
-*   **`gui_node` (Planned)**: Web dashboard developed with **Flet**.
-    *   **Interaction**: **Subscribes** to `PlcStatus` for real-time telemetry and the camera stream. It **publishes** mode requests, manual target overrides, and system commands.
+### Architecture Diagram
+```
+[GUI Level] (Planned)
+    ↓ Subscribes: PlcStatus, Camera Stream
+    ↑ Publishes: Mode Requests, Overrides
 
-### 2. Logic Level
-*   **`manager_node`**: The "brain" of the turret.
-    **Interaction**: It acts as a message multiplexer. It **subscribes** to `TeleopCommand` and perception data.
-    *   **Logic**: Based on the active state (Manual, Semi-Auto, Full-Auto), it **publishes** the final `PlcCommand` to the Driver Level. It also acts as a **Safety Watchdog**, monitoring node heartbeats to force an IDLE state upon link loss.
+[Logic Level]
+    ↓ Subscribes: TeleopCommand, Perception Data
+    ↑ Publishes: PlcCommand
+    • Mode Arbitration (IDLE, MANUAL_JOG, MANUAL_TRACK, AUTO_TRACK)
+    • Safety Watchdog (Heartbeat Monitoring)
 
-### 3. Teleop Level
-*   **`joystick_node`**: The user teleop interface.
-    *   **Interaction**: It **subscribes** to raw controller inputs from the hardware layer. It maps axes and buttons and **publishes** a `TeleopCommand`.
+[Teleop Level]
+    ↓ Subscribes: sensor_msgs/Joy
+    ↑ Publishes: TeleopCommand
+    • Maps joystick inputs to turret commands
 
-### 4. Perception Level
-*   **`target_processor_node` (Planned)**: The vision and coordinate transformation engine.
-    *   **Interaction**: It **subscribes** to 3D spatial results from the `depthai_ros_driver`.
-    *   **Logic**: Uses **TF2 (Transform Library)** to convert 3D camera coordinates into Pitch/Yaw angles relative to the turret base, then **publishes** target setpoints to the Manager.
+[Perception Level] (Planned)
+    ↓ Subscribes: DepthAI 3D Detections
+    ↑ Publishes: Target Setpoints
+    • TF2 Coordinate Transformation
 
-### 5. Drivers Level
-This level handles the physical hardware:
-*   **`plc_bridge_node`**: Manages the high-speed **100Hz UDP Cyclic link** (MSG200/201) with the Siemens PLC.
-*   **`joystick_bridge_node`**: Interfaces with the physical game controller (PS4/Xbox) using the **SFML** library.
-*   **`depthai_ros_driver`**: The official driver for the **Luxonis OAK-D**, providing 3D spatial detections.
+[Drivers Level]
+    ↓ Hardware I/O
+    ↑ Publishes: PlcStatus, sensor_msgs/Joy, DepthAI Data
+    • PLC UDP Bridge (100Hz)
+    • Joystick Driver (SFML)
+    • DepthAI Camera Driver
+```
+
+### Levels Description
+
+1. **GUI Level** (Planned): Web-based dashboard for monitoring and control.
+2. **Logic Level**: Central brain managing modes and safety.
+3. **Teleop Level**: User input processing from joysticks.
+4. **Perception Level** (Planned): Vision processing for autonomous targeting.
+5. **Drivers Level**: Low-level hardware interfaces.
+
+---
+
+## 📦 ROS 2 Packages
+
+The project is organized into the following ROS 2 packages:
+
+- **`argus_bringup`**: Launch files and configuration for starting the entire system.
+- **`argus_drivers`**: Hardware drivers and interfaces (includes `plc_bridge_node`, `joystick_driver_node`).
+- **`argus_interfaces`**: Custom message definitions and interfaces (includes `TeleopCommand`, `PlcCommand`, `PlcStatus`).
+- **`argus_joystick`**: (Interface definitions, if any).
+- **`argus_logic`**: Core logic and state management (`manager_node`).
+- **`argus_msgs`**: (Legacy or additional messages).
+- **`argus_plc_bridge`**: (Interface for PLC, possibly deprecated in favor of `argus_drivers`).
+- **`argus_teleop`**: Teleoperation utilities (`teleop_joy_node`).
 
 ---
 
@@ -64,4 +93,59 @@ This level handles the physical hardware:
 - [ ] **Autonomous Tracking**: Full-Auto mode using AI vision.
 
 ---
+
+## 🛠️ Getting Started
+
+### Prerequisites
+- Ubuntu 22.04
+- ROS 2 Humble (installation instructions: [ROS 2 Humble Installation](https://docs.ros.org/en/humble/Installation.html))
+- Colcon build tools
+- Python 3 and pip
+
+### Installation
+1. Clone the repository:
+   ```bash
+   git clone <repository-url>
+   cd argus_gate_ws
+   ```
+
+2. Install dependencies:
+   ```bash
+   rosdep install --from-paths src --ignore-src -r -y
+   ```
+
+### Building the Workspace
+```bash
+colcon build --symlink-install
+```
+
+### Running the System
+1. Source the workspace:
+   ```bash
+   source install/setup.bash
+   ```
+
+2. Launch the system (example launch file):
+   ```bash
+   ros2 launch argus_bringup gate_launch.py
+   ```
+
+For specific launch files, refer to the `argus_bringup` package.
+
+## 🔗 Third-party Libraries and Dependencies
+
+This project relies on the following open-source libraries and frameworks. We acknowledge and comply with their respective licenses:
+
+- **ROS 2 Humble**: Apache 2.0 License - [ROS 2 Documentation](https://docs.ros.org/en/humble/)
+- **SFML (Simple and Fast Multimedia Library)**: zlib License - [SFML Website](https://www.sfml-dev.org/)
+- **DepthAI (Luxonis)**: Apache 2.0 License - [DepthAI GitHub](https://github.com/luxonis/depthai)
+- **Flet**: Apache 2.0 License (for planned GUI) - [Flet GitHub](https://github.com/flet-dev/flet)
+
+For full license texts, refer to the respective repositories or the `LICENSE` files in their distributions.
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
