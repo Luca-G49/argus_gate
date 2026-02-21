@@ -4,7 +4,7 @@
 
 ---
 
-## 🏗️ System Overview
+## 🧩 System Overview
 
 The **Argus Gate** system is structured as a **modular ROS 2 graph** with five functional levels, ensuring safety, modularity, and efficient communication. Each level handles specific responsibilities, from hardware interaction to high-level decision-making.
 
