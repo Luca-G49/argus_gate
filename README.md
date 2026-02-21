@@ -1,6 +1,6 @@
 # Argus Gate: ROS 2 Airsoft Sentry Turret
 
-**Argus Gate** is a custom robotic project for an autonomous **Airsoft Sentry Turret** (Pitch & Yaw). The system uses **ROS 2 Humble** (running on Ubuntu 22.04) for high-level logic and vision, while a **Siemens S7-1214C PLC** handles the physical motion.
+**Argus Gate** is a custom robotic project for an autonomous **Airsoft Sentry Turret** (Pitch & Yaw). The system uses **ROS 2 Humble** (running on Ubuntu 22.04) for high-level logic and vision, while a **Siemens S7-1214C PLC** handles the physical motion with **Point-to-Point (PTP) interpolation** for precise axis control.
 
 ---
 
