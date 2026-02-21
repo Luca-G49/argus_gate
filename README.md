@@ -55,6 +55,7 @@ The **Argus Gate** system is structured as a **modular ROS 2 graph** with five f
 The project is organized into the following ROS 2 packages:
 
 - **`argus_bringup`**: Launch files and configuration for starting the entire system.
+- **`argus_description`**: URDF models and STL meshes for robot description and simulation.
 - **`argus_drivers`**: Hardware drivers and interfaces (includes `plc_bridge_node`, `joystick_driver_node`).
 - **`argus_interfaces`**: Custom message definitions and interfaces (includes `TeleopCommand`, `PlcCommand`, `PlcStatus`).
 - **`argus_joystick`**: (Interface definitions, if any).
@@ -77,8 +78,11 @@ The project is organized into the following ROS 2 packages:
 
 ## 📐 Mechanical Design & CAD
 
-*   **CAD Model:** Available in the [**`/cad`**](./cad) folder in **.STEP** format.
+*   **Full CAD Model:** Available as [turret.stl](./hardware/cad/turret.stl) in the **`/hardware/cad`** folder.
+*   **ROS Meshes:** STL files for simulation (base_link, pitch_link, yaw_link) in **`argus_description/meshes`**.
 *   **Range of Motion:** +-120° Yaw rotation / -20° to +45° Pitch.
+
+![Turret STL Preview](./docs/images/preview.PNG)
 
 ---
 
