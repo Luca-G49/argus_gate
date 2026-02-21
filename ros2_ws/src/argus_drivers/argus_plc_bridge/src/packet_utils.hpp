@@ -1,6 +1,6 @@
 /*
  * Argus Gate - argus_plc_bridge/src/packet_utils.hpp
- * Copyright (c) 2026, Name
+ * Copyright (c) 2026, Luca-G49
  * All rights reserved. Licensed under MIT License.
  */
 

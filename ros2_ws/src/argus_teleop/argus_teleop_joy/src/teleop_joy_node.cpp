@@ -1,6 +1,6 @@
 /*
  * Argus Gate - argus_teleop_joy/src/teleop_joy_node.cpp
- * Copyright (c) 2026, Name
+ * Copyright (c) 2026, Luca-G49
  * All rights reserved. Licensed under MIT License.
  */
 

@@ -1,5 +1,5 @@
 # Argus Gate - argus_manager/launch/manager.launch.py
-# Copyright (c) 2026, Luca G49
+# Copyright (c) 2026, Luca-G49
 # All rights reserved. Licensed under MIT License.
 
 import os

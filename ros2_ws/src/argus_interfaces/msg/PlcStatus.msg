@@ -1,5 +1,5 @@
 # Argus Gate - argus_interfaces/msg/PlcStatus.msg
-# Copyright (c) 2026, Luca G49
+# Copyright (c) 2026, Luca-G49
 # All rights reserved. Licensed under MIT License.
 
 uint16 life_word

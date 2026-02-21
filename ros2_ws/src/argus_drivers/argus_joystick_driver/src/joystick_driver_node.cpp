@@ -1,6 +1,6 @@
 /*
  * Argus Gate - argus_joystick_driver/src/joystick_driver_node.cpp
- * Copyright (c) 2026, Name
+ * Copyright (c) 2026, Luca-G49
  * All rights reserved. Licensed under MIT License.
  */
 
