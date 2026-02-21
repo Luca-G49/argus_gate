@@ -63,6 +63,20 @@ The project is organized into the following ROS 2 packages:
 
 ---
 
+## 🔄 How the System Works
+
+The **Argus Gate** turret integrates **ROS 2** for high-level decision-making and **Siemens PLC** for motor control.
+
+### Overall Functionality
+- **ROS 2 Side**: Handles user inputs, mode arbitration and communication with the PLC with UDP bridge. It also calculates target positions to reach using **TF2 transforms** for coordinate transformations.
+- **PLC Side**: It parses incoming commands, controls stepper motors in open-loop via pulse outputs, and sends back status (positions, errors).
+
+### Motion Control and PTP Interpolation
+Motor control is managed through **PLCopen Motion Control (MC) function blocks**:
+- **PTP (Point-to-Point) Interpolation**: For positioning moves, the PLC uses PTP interpolation. This moves the axes directly to target positions without intermediate path planning, ensuring fast and accurate point-to-point motion. Coordinated multi-axis moves (pitch + yaw) are handled by the `LAxesGrpCtrl` function block, which applies kinematics for smooth interpolation and synchronization between axes.
+
+---
+
 ## ⚙️ Hardware Details
 
 *   **ROS2 PC:** Generic PC running Ubuntu 22.04.
@@ -76,7 +90,7 @@ The project is organized into the following ROS 2 packages:
 
 ## 📐 Mechanical Design & CAD
 
-*   **Full CAD Model:** Available as [turret.stl](./hardware/cad/turret.stl) in the **`/hardware/cad`** folder.
+*   **Preview CAD Model:** Available as [turret.stl](./hardware/cad/turret.stl) in the **`/hardware/cad`** folder.
 *   **ROS Meshes:** STL files for simulation (base_link, pitch_link, yaw_link) in **`argus_description/meshes`**.
 *   **Range of Motion:** +-120° Yaw rotation / +-45° Pitch.
 
