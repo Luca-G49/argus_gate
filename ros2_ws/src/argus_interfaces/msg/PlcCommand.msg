@@ -1,7 +1,3 @@
-# Argus Gate - argus_interfaces/msg/PlcCommand.msg
-# Copyright (c) 2026, Luca-G49
-# All rights reserved. Licensed under MIT License.
-
 uint16 life_word
 bool ack
 bool exec

@@ -1,9 +1,4 @@
 <?xml version="1.0"?>
-<!--
-  Argus Gate - argus_teleop_keyboard/package.xml
-  Copyright (c) 2026, Luca-G49
-  All rights reserved. Licensed under MIT License.
--->
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>argus_teleop_keyboard</name>
