@@ -40,7 +40,6 @@ private:
     void on_status_received(const argus_interfaces::msg::PlcStatus::SharedPtr msg);
     void supervisor_cycle();
     bool check_watchdog(const rclcpp::Time& last_time, const std::string& source);
-    void publish_command();
     void update_requested_mode(bool teleop_ready);
     void execute_mode_logic(argus_interfaces::msg::PlcCommand &cmd);
     void map_teleop_to_jog(argus_interfaces::msg::PlcCommand &cmd);

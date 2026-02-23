@@ -64,7 +64,9 @@ void ArgusManagerNode::supervisor_cycle() {
     // Force IDLE mode if hardware reports an error
     if (last_status_.error != 0) {
         requested_mode_ = ControlMode::IDLE;
-        process_error_recovery(outbound_cmd);
+        if (teleop_alive && last_teleop_cmd_.reset_error) {
+            process_error_recovery(outbound_cmd);
+        }
     } 
     else if (!teleop_alive && requested_mode_ == ControlMode::MANUAL_JOG) {
         RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000, "Teleop Offline: Forcing Safe Stop");
@@ -99,7 +101,7 @@ void ArgusManagerNode::execute_mode_logic(argus_interfaces::msg::PlcCommand &cmd
             if (last_teleop_cmd_.send_target) {
                 cmd.target_pitch = last_teleop_cmd_.target_pitch;
                 cmd.target_yaw   = last_teleop_cmd_.target_yaw;
-                cmd.exec = true; // Signal PLC to move to target
+                cmd.exec = last_teleop_cmd_.execute_action;
             }
             break;
         
