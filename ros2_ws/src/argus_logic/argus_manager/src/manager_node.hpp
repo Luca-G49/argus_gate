@@ -26,10 +26,9 @@ public:
     // Modes mandated by ROS2 to the PLC
     enum class ControlMode : int16_t  {
         IDLE = 0,
-        MANUAL_JOG = 1,
-        MANUAL_TRACK = 2,
-        AUTO_TRACK = 5,
-        ERROR_RESET = 99
+        SYNCH = 1,
+        JOG = 2,
+        FOLLOW = 3
     };
 
     ArgusManagerNode();

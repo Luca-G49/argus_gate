@@ -68,7 +68,7 @@ void ArgusManagerNode::supervisor_cycle() {
             process_error_recovery(outbound_cmd);
         }
     } 
-    else if (!teleop_alive && requested_mode_ == ControlMode::MANUAL_JOG) {
+    else if (!teleop_alive && requested_mode_ == ControlMode::JOG) {
         RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000, "Teleop Offline: Forcing Safe Stop");
         requested_mode_ = ControlMode::IDLE;
     } 
@@ -87,22 +87,13 @@ void ArgusManagerNode::update_requested_mode(bool teleop_ready) {
 
     // Mode switching via Teleop requests
     if (last_teleop_cmd_.requested_mode == 0) requested_mode_ = ControlMode::IDLE;
-    if (last_teleop_cmd_.requested_mode == 1) requested_mode_ = ControlMode::MANUAL_JOG;
-    if (last_teleop_cmd_.requested_mode == 2) requested_mode_ = ControlMode::MANUAL_TRACK;
+    if (last_teleop_cmd_.requested_mode == 2) requested_mode_ = ControlMode::JOG;
 }
 
 void ArgusManagerNode::execute_mode_logic(argus_interfaces::msg::PlcCommand &cmd) {
     switch (requested_mode_) {
-        case ControlMode::MANUAL_JOG:
+        case ControlMode::JOG:
             map_teleop_to_jog(cmd);
-            break;
-        
-        case ControlMode::MANUAL_TRACK:
-            if (last_teleop_cmd_.send_target) {
-                cmd.target_pitch = last_teleop_cmd_.target_pitch;
-                cmd.target_yaw   = last_teleop_cmd_.target_yaw;
-                cmd.exec = last_teleop_cmd_.execute_action;
-            }
             break;
         
         default:

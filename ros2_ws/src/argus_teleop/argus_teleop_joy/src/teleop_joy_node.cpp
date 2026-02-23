@@ -40,23 +40,12 @@ private:
         cmd.yaw_speed   = msg->axes[4]; // RX Stick
 
         // --- 2. MODE ARBITRATION REQUESTS ---
-        if (msg->buttons[2]) cmd.requested_mode = 0; // Square -> Request IDLE
-        if (msg->buttons[3]) cmd.requested_mode = 1; // Triangle -> Request MANUAL
-
-        
-        // --- 3. TARGET LOGIC (Example: L1 triggers Auto Mode) ---
-        if (msg->buttons[4]) {
-            cmd.requested_mode = 2;      // Request MANUAL_TRACK
-            cmd.target_pitch   = 45.0f;  // Example fixed target
-            cmd.target_yaw     = 90.0f;
-            cmd.send_target    = true;
-        } else {
-            cmd.send_target    = false;
-        }
+        if (msg->buttons[1]) cmd.requested_mode = 0; // Circle -> Request IDLE
+        if (msg->buttons[2]) cmd.requested_mode = 2; // Square -> Request JOG
 
         // --- 4. ACTION COMMANDS ---
-        cmd.execute_action = msg->buttons[1]; // Circle -> EXEC
-        cmd.reset_error    = msg->buttons[0]; // Cross -> ACK/RESET
+        cmd.execute_action = msg->buttons[0]; // Cross -> EXEC
+        cmd.reset_error    = msg->buttons[3]; // Triangle -> ACK/RESET
 
         teleop_pub_->publish(cmd);
     }
