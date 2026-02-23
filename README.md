@@ -94,8 +94,6 @@ Motor control is managed through **PLCopen Motion Control (MC) function blocks**
 *   **ROS Meshes:** STL files for simulation (base_link, pitch_link, yaw_link) in **`argus_description/meshes`**.
 *   **Range of Motion:** +-120° Yaw rotation / +-45° Pitch.
 
-![Turret STL Preview](./docs/images/preview.PNG)
-
 ---
 
 ## 🚀 System Capabilities
