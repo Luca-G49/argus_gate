@@ -1,0 +1,13 @@
+string state
+string requested_mode
+bool teleop_online
+bool plc_online
+bool error_active
+bool busy
+bool done
+bool synch
+bool on_target
+float32 pitch_position
+float32 yaw_position
+float32 target_pitch
+float32 target_yaw
