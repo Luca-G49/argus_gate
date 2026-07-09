@@ -6,7 +6,14 @@
 
 #include "manager_node.hpp"
 
-ArgusManagerNode::ArgusManagerNode() : Node("argus_manager_node"), requested_mode_(ControlMode::IDLE) {
+ArgusManagerNode::ArgusManagerNode()
+: Node("argus_manager_node"),
+  requested_mode_(ControlMode::IDLE),
+  manager_state_(ManagerState::STOP),
+  last_reset_error_(false),
+  last_send_target_(false),
+  last_target_pitch_(0.0f),
+  last_target_yaw_(0.0f) {
     // Initialize watchdog timers to "now"
     last_teleop_time_ = this->get_clock()->now();
     last_status_time_ = this->get_clock()->now();
@@ -26,6 +33,7 @@ ArgusManagerNode::ArgusManagerNode() : Node("argus_manager_node"), requested_mod
         "plc_status", 10, std::bind(&ArgusManagerNode::on_status_received, this, std::placeholders::_1));
     
     command_pub_ = this->create_publisher<argus_interfaces::msg::PlcCommand>("plc_command", 10);
+    status_pub_ = this->create_publisher<argus_interfaces::msg::ManagerStatus>("manager_status", 10);
 
     // --- 3. MAIN CYCLE (50Hz) ---
     auto interval = std::chrono::duration<double>(1.0 / freq);
@@ -53,61 +61,156 @@ void ArgusManagerNode::supervisor_cycle() {
     bool plc_alive = check_watchdog(last_status_time_, "PLC");
 
     if (!plc_alive) {
-        RCLCPP_ERROR_THROTTLE(this->get_logger(), *this->get_clock(), 2000, "PLC Link Lost: Inhibiting commands");
-        return; 
+        RCLCPP_ERROR_THROTTLE(this->get_logger(), *this->get_clock(), 2000, "PLC Link Lost");
+        requested_mode_ = ControlMode::IDLE;
+        outbound_cmd.mode = static_cast<int16_t>(requested_mode_);
+        command_pub_->publish(outbound_cmd);
+        return;
     }
 
-    // --- STEP 2: MODE ARBITRATION ---
-    // Update the requested mode based on UI/Teleop inputs
-    update_requested_mode(teleop_alive);
+    ControlMode desired_mode = resolve_desired_mode(teleop_alive);
+    bool ack_edge = detect_ack_edge();
+    bool target_update = detect_target_update(desired_mode, teleop_alive);
 
-    // Force IDLE mode if hardware reports an error
+    // --- STEP 2: STATE MACHINE (aligned with PLC states) ---
+    ManagerState next_state = ManagerState::READY;
+
     if (last_status_.error != 0) {
-        requested_mode_ = ControlMode::IDLE;
-        if (teleop_alive && last_teleop_cmd_.reset_error) {
+        next_state = ManagerState::ERROR;
+        if (teleop_alive && ack_edge) {
             process_error_recovery(outbound_cmd);
+            next_state = ManagerState::READY;
         }
-    } 
-    else if (!teleop_alive && requested_mode_ == ControlMode::JOG) {
+    } else if (!teleop_alive) {
         RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000, "Teleop Offline: Forcing Safe Stop");
-        requested_mode_ = ControlMode::IDLE;
-    } 
-    else {
-        // --- STEP 3: LOGIC EXECUTION ---
-        execute_mode_logic(outbound_cmd);
+        next_state = ManagerState::READY;
+    } else {
+        switch (desired_mode) {
+            case ControlMode::SYNCH:
+                next_state = ManagerState::SYNCH;
+                break;
+            case ControlMode::JOG:
+                next_state = ManagerState::JOG;
+                break;
+            case ControlMode::FOLLOW:
+                next_state = ManagerState::FOLLOW;
+                break;
+            default:
+                next_state = ManagerState::READY;
+                break;
+        }
+    }
+
+    bool state_entered = (manager_state_ != next_state);
+    manager_state_ = next_state;
+
+    requested_mode_ = (next_state == ManagerState::ERROR) ? ControlMode::IDLE : desired_mode;
+
+    if (next_state == ManagerState::JOG) {
+        execute_mode_logic(outbound_cmd, requested_mode_, state_entered, target_update);
+    } else if (next_state == ManagerState::SYNCH) {
+        execute_mode_logic(outbound_cmd, requested_mode_, state_entered, target_update);
+    } else if (next_state == ManagerState::FOLLOW) {
+        execute_mode_logic(outbound_cmd, requested_mode_, state_entered, target_update);
     }
 
     // Set the final mode mandated by ROS2
     outbound_cmd.mode = static_cast<int16_t>(requested_mode_);
     command_pub_->publish(outbound_cmd);
+
+    // Update edge tracking for the next cycle.
+    last_reset_error_ = last_teleop_cmd_.reset_error;
+    last_send_target_ = last_teleop_cmd_.send_target;
+    if (target_update) {
+        last_target_pitch_ = last_teleop_cmd_.target_pitch;
+        last_target_yaw_ = last_teleop_cmd_.target_yaw;
+    }
+
+    auto status_msg = argus_interfaces::msg::ManagerStatus();
+    status_msg.state = state_to_string(manager_state_);
+    status_msg.requested_mode = mode_to_string(requested_mode_);
+    status_msg.teleop_online = teleop_alive;
+    status_msg.plc_online = plc_alive;
+    status_msg.error_active = (manager_state_ == ManagerState::ERROR) || (last_status_.error != 0);
+    status_msg.busy = last_status_.busy;
+    status_msg.done = last_status_.done;
+    status_msg.synch = last_status_.synch;
+    status_msg.on_target = last_status_.on_target;
+    status_msg.pitch_position = last_status_.pos_pitch;
+    status_msg.yaw_position = last_status_.pos_yaw;
+    status_msg.target_pitch = last_teleop_cmd_.target_pitch;
+    status_msg.target_yaw = last_teleop_cmd_.target_yaw;
+    status_pub_->publish(status_msg);
 }
 
-void ArgusManagerNode::update_requested_mode(bool teleop_ready) {
-    if (!teleop_ready) return;
+ArgusManagerNode::ControlMode ArgusManagerNode::resolve_desired_mode(bool teleop_ready) const {
+    if (!teleop_ready) {
+        return ControlMode::IDLE;
+    }
 
-    // Mode switching via Teleop requests
-    if (last_teleop_cmd_.requested_mode == 0) requested_mode_ = ControlMode::IDLE;
-    if (last_teleop_cmd_.requested_mode == 2) requested_mode_ = ControlMode::JOG;
+    switch (last_teleop_cmd_.requested_mode) {
+        case 1:
+            return ControlMode::SYNCH;
+        case 2:
+            return ControlMode::JOG;
+        case 3:
+            return ControlMode::FOLLOW;
+        default:
+            return ControlMode::IDLE;
+    }
 }
 
-void ArgusManagerNode::execute_mode_logic(argus_interfaces::msg::PlcCommand &cmd) {
-    switch (requested_mode_) {
+bool ArgusManagerNode::detect_ack_edge() const {
+    return last_teleop_cmd_.reset_error && !last_reset_error_;
+}
+
+bool ArgusManagerNode::detect_target_update(ArgusManagerNode::ControlMode desired_mode, bool teleop_ready) const {
+    if (!teleop_ready || desired_mode != ControlMode::FOLLOW) {
+        return false;
+    }
+
+    bool send_target_edge = last_teleop_cmd_.send_target && !last_send_target_;
+    bool target_changed = std::fabs(last_teleop_cmd_.target_pitch - last_target_pitch_) > 1e-6f
+        || std::fabs(last_teleop_cmd_.target_yaw - last_target_yaw_) > 1e-6f;
+
+    return send_target_edge || target_changed;
+}
+
+void ArgusManagerNode::execute_mode_logic(argus_interfaces::msg::PlcCommand &cmd,
+                                          ArgusManagerNode::ControlMode desired_mode,
+                                          bool state_entry,
+                                          bool target_update) {
+    switch (desired_mode) {
+        case ControlMode::SYNCH:
+            cmd.exec = 1;
+            break;
+
         case ControlMode::JOG:
+            cmd.exec = 0;
             map_teleop_to_jog(cmd);
             break;
-        
+
+        case ControlMode::FOLLOW:
+            cmd.target_pitch = last_teleop_cmd_.target_pitch;
+            cmd.target_yaw = last_teleop_cmd_.target_yaw;
+            cmd.exec = 1;
+            break;
+
+        case ControlMode::IDLE:
+            cmd.exec = 0;
         default:
             break;
     }
 }
 
 void ArgusManagerNode::map_teleop_to_jog(argus_interfaces::msg::PlcCommand &cmd) {
-    // Map speed to jog directions
-    cmd.pitch_jog_p = (last_teleop_cmd_.pitch_speed > 0);
-    cmd.pitch_jog_n = (last_teleop_cmd_.pitch_speed < 0);
-    cmd.yaw_jog_p   = (last_teleop_cmd_.yaw_speed > 0);
-    cmd.yaw_jog_n   = (last_teleop_cmd_.yaw_speed < 0);
-    // Overrides not in TeleopCommand, set to 100% or default
+    // Map speed to jog directions.
+    cmd.pitch_jog_p = (last_teleop_cmd_.pitch_speed > 0.0f);
+    cmd.pitch_jog_n = (last_teleop_cmd_.pitch_speed < 0.0f);
+    cmd.yaw_jog_p   = (last_teleop_cmd_.yaw_speed > 0.0f);
+    cmd.yaw_jog_n   = (last_teleop_cmd_.yaw_speed < 0.0f);
+
+    // Use full override unless the teleop layer provides a more specific scaling later.
     cmd.pitch_override = 1.0f;
     cmd.yaw_override   = 1.0f;
 }
@@ -123,6 +226,38 @@ void ArgusManagerNode::reset_command(argus_interfaces::msg::PlcCommand &cmd) {
 bool ArgusManagerNode::check_watchdog(const rclcpp::Time& last_time, const std::string& source) {
     auto elapsed = this->get_clock()->now() - last_time;
     return elapsed < timeout_threshold_;
+}
+
+std::string ArgusManagerNode::state_to_string(ManagerState state) const {
+    switch (state) {
+        case ManagerState::STOP:
+            return "STOP";
+        case ManagerState::READY:
+            return "READY";
+        case ManagerState::SYNCH:
+            return "SYNCH";
+        case ManagerState::JOG:
+            return "JOG";
+        case ManagerState::FOLLOW:
+            return "FOLLOW";
+        case ManagerState::ERROR:
+        default:
+            return "ERROR";
+    }
+}
+
+std::string ArgusManagerNode::mode_to_string(ControlMode mode) const {
+    switch (mode) {
+        case ControlMode::SYNCH:
+            return "SYNCH";
+        case ControlMode::JOG:
+            return "JOG";
+        case ControlMode::FOLLOW:
+            return "FOLLOW";
+        case ControlMode::IDLE:
+        default:
+            return "IDLE";
+    }
 }
 
 int main(int argc, char **argv) {
