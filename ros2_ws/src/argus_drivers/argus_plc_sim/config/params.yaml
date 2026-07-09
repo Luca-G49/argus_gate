@@ -1,0 +1,7 @@
+plc_sim_node:
+  ros__parameters:
+    publish_frequency_hz: 50.0
+    step_per_cycle: 0.02
+    target_tolerance: 0.01
+    initial_pitch: 0.0
+    initial_yaw: 0.0
