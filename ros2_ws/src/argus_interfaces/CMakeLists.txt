@@ -15,6 +15,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/PlcCommand.msg"
   "msg/PlcStatus.msg"
   "msg/TeleopCommand.msg"
+  "msg/ManagerStatus.msg"
   DEPENDENCIES builtin_interfaces
 )
 
