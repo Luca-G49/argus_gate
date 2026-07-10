@@ -10,12 +10,14 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
 from argus_interfaces.msg import ManagerStatus, PlcCommand, TeleopCommand
 
 
-# ==========================================
-# 1. ROS 2 NODE (Logica di Background)
-# ==========================================
+# ==============================================================================
+# 1. ROS 2 NODE (Background Logic & Pub/Sub Threads)
+# ==============================================================================
 class ManagerGuiNode(Node):
     def __init__(self):
         super().__init__('argus_flet_gui_node')
+        
+        # Configure best-effort QoS profile for high-frequency telemetry data
         qos = QoSProfile(depth=10)
         qos.reliability = ReliabilityPolicy.BEST_EFFORT
         qos.durability = DurabilityPolicy.VOLATILE
@@ -23,11 +25,13 @@ class ManagerGuiNode(Node):
         self.declare_parameter('publish_rate_hz', 50.0)
         self.publish_rate_hz = self.get_parameter('publish_rate_hz').get_parameter_value().double_value
 
+        # Initialize ROS 2 interfaces
         self.status_sub = self.create_subscription(ManagerStatus, 'manager_status', self.status_cb, qos)
         self.plc_cmd_pub = self.create_publisher(PlcCommand, 'plc_command', 10)
         self.teleop_pub = self.create_publisher(TeleopCommand, 'teleop_cmd', 10)
         self.timer = self.create_timer(1.0 / self.publish_rate_hz, self.publish_loop)
 
+        # Thread-shared operational state variables
         self.latest_status: Optional[ManagerStatus] = None
         self.pitch_speed = 0.0
         self.yaw_speed = 0.0
@@ -39,9 +43,11 @@ class ManagerGuiNode(Node):
         self.send_target = False
 
     def status_cb(self, msg: ManagerStatus):
+        """Asynchronous incoming telemetry callback."""
         self.latest_status = msg
 
     def publish_mode(self, mode: int, execute: bool = False):
+        """Dispatches operational state machine switch commands to the PLC."""
         cmd = PlcCommand()
         cmd.mode = mode
         cmd.exec = execute
@@ -58,6 +64,7 @@ class ManagerGuiNode(Node):
                        send_target: bool = False,
                        execute_action: bool = False,
                        reset_error: bool = False):
+        """Updates internal telemetry registers to be picked up by the fast control loop thread."""
         self.pitch_speed = pitch_speed
         self.yaw_speed = yaw_speed
         self.requested_mode = requested_mode
@@ -68,6 +75,7 @@ class ManagerGuiNode(Node):
         self.reset_error = reset_error
 
     def publish_loop(self):
+        """High-frequency deterministic transmission loop (executed on ROS 2 timer thread)."""
         msg = TeleopCommand()
         msg.pitch_speed = self.pitch_speed
         msg.yaw_speed = self.yaw_speed
@@ -79,12 +87,13 @@ class ManagerGuiNode(Node):
         msg.reset_error = self.reset_error
         self.teleop_pub.publish(msg)
 
+        # Reset transient control flags immediately post-transmission
         self.execute_action = False
         self.reset_error = False
         self.send_target = False
-# ==========================================
-# 2. FLET GRAPHICAL INTERFACE (Stile Tesla)
-# ==========================================
+# ==============================================================================
+# 2. FLET GRAPHICAL INTERFACE (Tesla Minimalist UI Layout Architecture)
+# ==============================================================================
 class FletGui:
     def __init__(self, node: ManagerGuiNode):
         self.node = node
@@ -93,7 +102,7 @@ class FletGui:
         self.active_jog_pitch = 0.0
         self.active_jog_yaw = 0.0
 
-        # Componenti Monitoraggio (Colonna 1)
+        # UI Components - Telemetry Block (Column 1)
         self.state_text = ft.Text("ATTESA TELEMETRIA...", color="white", size=14, weight=ft.FontWeight.BOLD)
         self.teleop_conn_status = ft.Text("Teleop: --", color="#6B7280", size=11)
         self.plc_conn_status = ft.Text("PLC: --", color="#6B7280", size=11)
@@ -111,7 +120,7 @@ class FletGui:
             bgcolor="#374151",
         )
 
-        # Mappa Errore Cartesiana
+        # UI Components - Cartesian Error Tracking Area
         self.error_target_dot = ft.Container(
             expand=True,
             alignment=ft.Alignment(0, 0),
@@ -132,13 +141,13 @@ class FletGui:
         )
         self.error_meta_text = ft.Text("ΔP: 0.00  ΔY: 0.00", size=11, color="#6B7280", font_family="monospace")
 
-        # Bottoni Modalità Operative (Colonna 2)
+        # UI Components - Operational Mode Selection Panel (Column 2)
         self.btn_idle = self.create_mode_button(ft.Icons.PAUSE_ROUNDED, "IDLE", 0)
         self.btn_synch = self.create_mode_button(ft.Icons.SYNC_ALT_ROUNDED, "SYNCH", 1)
         self.btn_jog = self.create_mode_button(ft.Icons.PAN_TOOL_ALT_ROUNDED, "JOG", 2)
         self.btn_follow = self.create_mode_button(ft.Icons.TRACK_CHANGES_ROUNDED, "FOLLOW", 3)
 
-        # Campi Target Follow
+        # UI Components - Closed Loop Entry Fields
         self.pitch_target_input = ft.TextField(
             label="Pitch Target", label_style=ft.TextStyle(color="#6B7280", size=11),
             value="0.0", width=85, height=40, text_size=13, color="white",
@@ -152,7 +161,7 @@ class FletGui:
             content_padding=8, border_radius=8
         )
 
-        # Slider di Velocità Jog (Colonna 3)
+        # UI Components - Kinematic Tuning Configuration (Column 3)
         self.jog_speed_label = ft.Text(f"{self.jog_speed:.2f}", weight="bold", color="white", size=12)
         self.pitch_slider = ft.Slider(
             min=0.0, max=1.5, divisions=30, value=self.jog_speed,
@@ -160,7 +169,6 @@ class FletGui:
             on_change=self.on_jog_speed_change
         )
         
-        # Flag di stato di sistema inferiori
         self.flags_text = ft.Text("Flags: --", size=10, color="#6B7280", overflow=ft.TextOverflow.ELLIPSIS)
 
     async def main(self, page: ft.Page):
@@ -170,17 +178,14 @@ class FletGui:
         page.bgcolor = "#111111"
         page.padding = 10
         
-        # Orientamento simulato per iPhone 12 Pro Max Landscape
+        # Enforce landscape aspect ratio layout matching an iPhone 12 Pro Max screen blueprint
         page.window.width = 844
         page.window.height = 390
         page.window.resizable = False
 
-        # --- PANNELLO 1: TELEMETRIA & STATO (SINISTRA) ---
+        # --- PANEL 1: TELEMETRY & DIAGNOSTICS (LEFT GRID) ---
         col_telemetry = ft.Container(
-            expand=4,
-            bgcolor="#1C1C1E",
-            border_radius=16,
-            padding=12,
+            expand=4, bgcolor="#1C1C1E", border_radius=16, padding=12,
             content=ft.Column([
                 ft.Row([
                     ft.Column([
@@ -189,20 +194,17 @@ class FletGui:
                     ], spacing=2),
                     self.badge_container
                 ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                
                 ft.Divider(color="#2C2C2E", height=10),
-                
                 ft.Row([
                     ft.Column([
-                        ft.Text("POSIZIONE ATTUALE", size=10, color="#6B7280", weight=ft.FontWeight.BOLD),
+                        ft.Text("CURRENT POSITION", size=10, color="#6B7280", weight=ft.FontWeight.BOLD),
                         self.pitch_pos_text,
                         self.yaw_pos_text,
                         ft.Container(height=4),
-                        ft.Text("CONNESSIONI", size=10, color="#6B7280", weight=ft.FontWeight.BOLD),
+                        ft.Text("CONNECTIONS", size=10, color="#6B7280", weight=ft.FontWeight.BOLD),
                         self.teleop_conn_status,
                         self.plc_conn_status,
                     ], spacing=2, expand=True),
-                    
                     ft.Column([
                         self.error_box,
                         ft.Container(content=self.error_meta_text, alignment=ft.Alignment(0, 0))
@@ -211,44 +213,32 @@ class FletGui:
             ], spacing=4)
         )
 
-        # --- PANNELLO 2: MODALITÀ & TARGET (CENTRO) ---
+        # --- PANEL 2: STATE SELECTION & COMMANDS (CENTER GRID) ---
         col_modes = ft.Container(
-            expand=3,
-            bgcolor="#1C1C1E",
-            border_radius=16,
-            padding=12,
+            expand=3, bgcolor="#1C1C1E", border_radius=16, padding=12,
             content=ft.Column([
-                ft.Text("MODALITÀ OPERATIVE", size=11, color="#6B7280", weight=ft.FontWeight.BOLD),
+                ft.Text("OPERATIONAL MODES", size=11, color="#6B7280", weight=ft.FontWeight.BOLD),
                 ft.Row([self.btn_idle, self.btn_synch], spacing=8),
                 ft.Row([self.btn_jog, self.btn_follow], spacing=8),
-                
                 ft.Divider(color="#2C2C2E", height=10),
-                
-                ft.Text("INVIA TARGET FOLLOW", size=11, color="#6B7280", weight=ft.FontWeight.BOLD),
+                ft.Text("TRANSMIT CLOSED-LOOP TARGET", size=11, color="#6B7280", weight=ft.FontWeight.BOLD),
                 ft.Row([self.pitch_target_input, self.yaw_target_input], spacing=8, alignment=ft.MainAxisAlignment.CENTER),
                 ft.Container(
-                    content=ft.Text("INVIA TARGET", color="white", size=12, weight=ft.FontWeight.BOLD),
-                    bgcolor="#007AFF",
-                    border_radius=8,
-                    height=35,
-                    alignment=ft.Alignment(0, 0),
+                    content=ft.Text("SEND TARGET", color="white", size=12, weight=ft.FontWeight.BOLD),
+                    bgcolor="#007AFF", border_radius=8, height=35, alignment=ft.Alignment(0, 0),
                     on_click=self.send_follow_target
                 )
             ], spacing=6)
         )
 
-        # --- PANNELLO 3: JOG MANUAL CONTROLS (DESTRA) ---
+        # --- PANEL 3: MANUAL JOG CONTROLS (RIGHT GRID) ---
         col_jog_pad = ft.Container(
-            expand=3,
-            bgcolor="#1C1C1E",
-            border_radius=16,
-            padding=12,
+            expand=3, bgcolor="#1C1C1E", border_radius=16, padding=12,
             content=ft.Column([
                 ft.Row([
                     ft.Text("JOG CONTROLS", size=11, color="#6B7280", weight=ft.FontWeight.BOLD),
                     self.jog_speed_label
                 ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                
                 ft.Container(
                     content=ft.Column([
                         ft.Row([self.create_jog_arrow(ft.Icons.ARROW_UPWARD_ROUNDED, pitch_speed=1.0)], alignment=ft.MainAxisAlignment.CENTER),
@@ -259,27 +249,20 @@ class FletGui:
                         ], alignment=ft.MainAxisAlignment.CENTER, spacing=10),
                         ft.Row([self.create_jog_arrow(ft.Icons.ARROW_DOWNWARD_ROUNDED, pitch_speed=-1.0)], alignment=ft.MainAxisAlignment.CENTER)
                     ], spacing=4),
-                    alignment=ft.Alignment(0, 0),
-                    expand=True
+                    alignment=ft.Alignment(0, 0), expand=True
                 ),
-                
                 self.pitch_slider,
-                
                 ft.Row([
                     ft.Container(
-                        content=ft.Text("RESET ERRORE", color="#EF4444", size=11, weight=ft.FontWeight.BOLD),
-                        border=ft.Border.all(1, "#EF4444"),
-                        border_radius=8,
-                        height=28,
-                        expand=True,
-                        alignment=ft.Alignment(0, 0),
+                        content=ft.Text("RESET FAULT", color="#EF4444", size=11, weight=ft.FontWeight.BOLD),
+                        border=ft.Border.all(1, "#EF4444"), border_radius=8, height=28, expand=True, alignment=ft.Alignment(0, 0),
                         on_click=lambda e: self.node.publish_teleop(requested_mode=0, reset_error=True)
                     )
                 ])
             ], spacing=4)
         )
 
-        # Configurazione principale della pagina in Landscape
+        # Assemble viewport scene using horizontal flex containers
         page.add(
             ft.SafeArea(
                 expand=True,
@@ -294,12 +277,12 @@ class FletGui:
             )
         )
 
+        # Run periodic synchronization loop natively inside Flet Async Engine
         while True:
             await asyncio.sleep(0.15)
             self.refresh_view()
-    # --- WIDGET FACTORIES (Stile Tesla) ---
+    # --- WIDGET FACTORIES (Dynamic Instantiation Patterns) ---
     def create_mode_button(self, icon: str, label: str, mode_id: int):
-        # Determina se la modalità necessita dell'esecuzione immediata (Synch=1, Follow=3)
         exec_immediately = mode_id in (1, 3)
         return ft.Container(
             content=ft.Column([
@@ -321,16 +304,12 @@ class FletGui:
             on_tap_up=lambda e: self.stop_jog(),
             content=ft.Container(
                 content=ft.Icon(icon, color="white", size=24),
-                width=46,
-                height=46,
-                alignment=ft.Alignment(0, 0),
-                bgcolor="#111111",
-                border=ft.Border.all(1, "#374151"),
-                border_radius=12,
+                width=46, height=46, alignment=ft.Alignment(0, 0),
+                bgcolor="#111111", border=ft.Border.all(1, "#374151"), border_radius=12,
             ),
         )
 
-    # --- LOGICA DI AGGIORNAMENTO DATI IN TEMPO REALE ---
+    # --- REAL-TIME TELEMETRY REFRESH ENGINE ---
     def refresh_view(self):
         if self.page is None:
             return
@@ -341,9 +320,11 @@ class FletGui:
             self.page.update()
             return
 
+        # Core mathematical computations
         pitch_error = status.target_pitch - status.pitch_position
         yaw_error = status.target_yaw - status.yaw_position
 
+        # Update diagnostic texts
         self.state_text.value = f"STATO: {status.state}".upper()
         self.teleop_conn_status.value = f"Teleop: {'ONLINE' if status.teleop_online else 'OFFLINE'}"
         self.teleop_conn_status.color = "#10B981" if status.teleop_online else "#EF4444"
@@ -360,20 +341,29 @@ class FletGui:
 
         self._set_error_map(pitch_error, yaw_error)
 
-        # Cambia l'illuminazione in base allo stato attivo
+        # --- RE-RENDER BUTTON COLOR SCHEME (Fixing Type-Mismatch & Immutability limitations) ---
+        # Parse incoming ROS 2 string parameter into an actionable integer key
+        ros_mode = str(status.requested_mode).strip().upper()
+        mode_mapping = {
+            "0": 0, "1": 1, "2": 2, "3": 3,
+            "IDLE": 0, "SYNCH": 1, "JOG": 2, "FOLLOW": 3
+        }
+        active_idx = mode_mapping.get(ros_mode, -1)
+
         buttons = [self.btn_idle, self.btn_synch, self.btn_jog, self.btn_follow]
         for idx, btn in enumerate(buttons):
-            if status.requested_mode == idx:
-                btn.bgcolor = "#1E3A8A"  
-                btn.border.color = "#007AFF"
-                btn.content.controls[0].color = "#007AFF"  
+            if active_idx == idx:
+                btn.bgcolor = "#1E3A8A"  # Tesla active deep blue
+                btn.border = ft.Border.all(1, "#007AFF")          # Re-assigning entire Border object triggers Flet reactive update
+                btn.content.controls[0].color = "#007AFF"         # Direct element property targeting for children controls
                 btn.content.controls[1].color = "white"     
             else:
-                btn.bgcolor = "#111111"
-                btn.border.color = "#2C2C2E"
-                btn.content.controls[0].color = "#6B7280"  
-                btn.content.controls[1].color = "#6B7280"  
+                btn.bgcolor = "#111111"  # Inactive standard charcoal dark
+                btn.border = ft.Border.all(1, "#2C2C2E")          
+                btn.content.controls[0].color = "#6B7280"         
+                btn.content.controls[1].color = "#6B7280"         
 
+        # Update Master Badge Container Indicators
         if status.error_active:
             self.badge_text.value = "ERROR"
             self.badge_container.bgcolor = "#7F1D1D"
@@ -384,6 +374,7 @@ class FletGui:
             self.badge_text.value = "READY"
             self.badge_container.bgcolor = "#065F46"
 
+        # Force state serialization and render pipe to front-end window
         self.page.update()
 
     def start_jog(self, pitch_speed: float = 0.0, yaw_speed: float = 0.0):
@@ -413,8 +404,8 @@ class FletGui:
         return max(minimum, min(maximum, value))
 
     def _set_error_map(self, pitch_error: float, yaw_error: float):
-        pitch_limit = max(0.5, abs(pitch_error))
-        yaw_limit = max(0.5, abs(yaw_error))
+        pitch_limit = max(90.0, abs(pitch_error))
+        yaw_limit = max(90.0, abs(yaw_error))
         x = self._clamp(yaw_error / yaw_limit)
         y = self._clamp(-pitch_error / pitch_limit)
         self.error_target_dot.alignment = ft.Alignment(0, 0)
@@ -425,37 +416,42 @@ class FletGui:
             pitch = float(self.pitch_target_input.value)
             yaw = float(self.yaw_target_input.value)
         except ValueError:
-            self.flags_text.value = "Errore: Valori di target non validi!"
+            self.flags_text.value = "Error: Invalid numeric formatting inside input target fields!"
             self.page.update()
             return
 
         self.node.publish_teleop(requested_mode=3, target_pitch=pitch, target_yaw=yaw, send_target=True)
-        self.flags_text.value = f"Target Follow inviato con successo: P={pitch:.2f}, Y={yaw:.2f}"
+        self.flags_text.value = f"Closed-loop follow target transmitted successfully: P={pitch:.2f}, Y={yaw:.2f}"
         self.page.update()
 
 
-# ==========================================
-# 3. THREADING & ROS 2 EXECUTION LIFE CYCLE
-# ==========================================
+# ==============================================================================
+# 3. CONCURRENT APPLICATION MULTI-THREAD ENTRYPOINT
+# ==============================================================================
 def main(args=None):
+    # Initialize the ROS 2 context middleware
     rclpy.init(args=args or sys.argv)
     node = ManagerGuiNode()
 
     def spin_ros():
+        """Dedicated execution loop for processing incoming ROS 2 subscription queues."""
         rclpy.spin(node)
 
     def run_gui():
+        """Spawns the main UI presentation framework layer window."""
         ft.app(
             target=FletGui(node).main,
             view=ft.AppView.FLET_APP,
         )
 
+    # Launch ROS 2 executor on a decoupled daemon background thread to keep UI interaction fully reactive
     ros_thread = threading.Thread(target=spin_ros, daemon=True)
     ros_thread.start()
 
     try:
         run_gui()
     finally:
+        # Guarantee a clean lifecycle shutdown sequence upon user window dismissal
         node.destroy_node()
         rclpy.shutdown()
 
