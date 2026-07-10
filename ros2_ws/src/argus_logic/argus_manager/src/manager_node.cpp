@@ -60,14 +60,6 @@ void ArgusManagerNode::supervisor_cycle() {
     bool teleop_alive = check_watchdog(last_teleop_time_, "Teleop");
     bool plc_alive = check_watchdog(last_status_time_, "PLC");
 
-    if (!plc_alive) {
-        RCLCPP_ERROR_THROTTLE(this->get_logger(), *this->get_clock(), 2000, "PLC Link Lost");
-        requested_mode_ = ControlMode::IDLE;
-        outbound_cmd.mode = static_cast<int16_t>(requested_mode_);
-        command_pub_->publish(outbound_cmd);
-        return;
-    }
-
     ControlMode desired_mode = resolve_desired_mode(teleop_alive);
     bool ack_edge = detect_ack_edge();
     bool target_update = detect_target_update(desired_mode, teleop_alive);
@@ -75,14 +67,17 @@ void ArgusManagerNode::supervisor_cycle() {
     // --- STEP 2: STATE MACHINE (aligned with PLC states) ---
     ManagerState next_state = ManagerState::READY;
 
-    if (last_status_.error != 0) {
+    if (!plc_alive) {
+        RCLCPP_ERROR_THROTTLE(this->get_logger(), *this->get_clock(), 2000, "PLC Link Lost");
+        next_state = ManagerState::READY;
+    } else if (last_status_.error != 0) {
         next_state = ManagerState::ERROR;
         if (teleop_alive && ack_edge) {
             process_error_recovery(outbound_cmd);
             next_state = ManagerState::READY;
         }
     } else if (!teleop_alive) {
-        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000, "Teleop Offline: Forcing Safe Stop");
+        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000, "Teleop Offline");
         next_state = ManagerState::READY;
     } else {
         switch (desired_mode) {
