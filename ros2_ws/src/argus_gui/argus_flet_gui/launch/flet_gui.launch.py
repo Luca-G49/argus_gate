@@ -8,6 +8,6 @@ def generate_launch_description():
             package='argus_flet_gui',
             executable='argus_flet_gui',
             name='argus_flet_gui',
-            output='screen'
+            output='screen',
         )
     ])

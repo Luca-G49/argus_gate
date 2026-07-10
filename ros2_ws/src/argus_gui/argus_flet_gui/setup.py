@@ -1,5 +1,8 @@
+import os
+from glob import glob
 from setuptools import find_packages, setup
 
+# Il nome corretto del pacchetto è argus_flet_gui
 package_name = 'argus_flet_gui'
 
 setup(
@@ -15,13 +18,14 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            # Esegue la funzione main() dentro argus_flet_gui/gui.py
             'argus_flet_gui = argus_flet_gui.gui:main',
         ],
     },
     data_files=[
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-        ('share/' + package_name + '/launch', ['launch/flet_gui.launch.py']),
+        ('share/' + package_name + '/launch', glob('launch/*launch.[pxy][yma]*')),
     ],
     include_package_data=True,
 )
